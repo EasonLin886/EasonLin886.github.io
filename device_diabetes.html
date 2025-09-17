@@ -778,6 +778,7 @@
         <button id="btn-cgm-analysis" class="nav-btn">個人CGM資料與分析</button>
         <button id="btn-ai-food" class="nav-btn">AI食物辨識</button>
         <button id="btn-food-diary" class="nav-btn">個人飲食日誌</button>
+        <button id="btn-weight-exercise" class="nav-btn">個人體重與運動管理</button>
         <!-- <button id="btn-feedback" class="nav-btn">意見回饋</button> -->
         
     </div>
@@ -1074,6 +1075,50 @@
         <div id="foodDiaryOutput" style="padding: 10px;"></div>
     </div>
 
+    <div id="section-weight-exercise" class="content-section" style="display: none;">
+        <h2>個人體重與運動管理</h2>
+        
+        <!-- 體重記錄表單 -->
+        <div class="weight-form-container" style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <h3>體重記錄</h3>
+            <form id="weightForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label for="age">年齡：</label>
+                        <input type="number" id="age" name="age" min="1" max="120" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label for="height">身高 (cm)：</label>
+                        <input type="number" id="height" name="height" min="50" max="250" step="0.1" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label for="weight">體重 (kg)：</label>
+                        <input type="number" id="weight" name="weight" min="10" max="300" step="0.1" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label for="recordDate">記錄日期：</label>
+                        <input type="date" id="recordDate" name="recordDate" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="notes">備註：</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="可選：記錄當時的身體狀況、運動情況等..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+                </div>
+                <button type="submit" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                    記錄體重
+                </button>
+            </form>
+        </div>
+
+        <!-- 體重記錄顯示區域 -->
+        <div class="weight-records-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+            <h3>體重記錄歷史</h3>
+            <div id="weightRecordsOutput" style="padding: 10px;"></div>
+        </div>
+    </div>
+
     <div id="section-feedback" class="content-section" style="display: none;">
         <h2>意見回饋</h2>
         <form id="feedbackForm" style="margin-top:20px;">
@@ -1302,6 +1347,12 @@
             if (targetSectionId === 'section-food-diary') {
                 fetchFoodDiary();
                 // 載入營養素建議
+            }
+            // 當切換到體重與運動管理分頁時，自動載入體重記錄
+            if (targetSectionId === 'section-weight-exercise') {
+                fetchWeightRecords();
+                // 設定預設日期為今天
+                document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
                 setTimeout(() => {
                     loadNutritionGoals();
                 }, 1000);
@@ -2668,6 +2719,134 @@
             alert(result.message);
         }
     }
+
+    // 體重與運動管理分頁邏輯
+    async function fetchWeightRecords() {
+        const userId = window.globalUserId || 'FALLBACK_USER_ID';
+        try {
+            const res = await fetch('https://19224b22c5ce.ngrok-free.app/weight_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: userId,
+                    action: 'get'
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                renderWeightRecords(result.data);
+            } else {
+                console.error('查詢體重記錄失敗:', result.message);
+                document.getElementById('weightRecordsOutput').innerHTML = '<div style="color:#888;">查無體重記錄</div>';
+            }
+        } catch (error) {
+            console.error('查詢體重記錄時發生錯誤:', error);
+            document.getElementById('weightRecordsOutput').innerHTML = '<div style="color:#888;">查詢失敗，請稍後再試</div>';
+        }
+    }
+
+    function renderWeightRecords(records) {
+        const recordsDiv = document.getElementById('weightRecordsOutput');
+        if (!records || records.length === 0) {
+            recordsDiv.innerHTML = '<div style="color:#888;">查無體重記錄</div>';
+            return;
+        }
+        
+        let html = '<div style="max-height: 400px; overflow-y: auto;">';
+        records.forEach((record, index) => {
+            const bmiColor = getBMIColor(record.bmi);
+            html += `
+                <div style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: bold; color: #333;">${record.record_date}</div>
+                        <div style="font-size: 0.9em; color: #666;">${record.created_at.split(' ')[1]}</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; font-weight: bold; color: #007bff;">${record.height} cm</div>
+                            <div style="font-size: 0.8em; color: #666;">身高</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; font-weight: bold; color: #28a745;">${record.weight} kg</div>
+                            <div style="font-size: 0.8em; color: #666;">體重</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.2em; font-weight: bold; color: ${bmiColor};">${record.bmi}</div>
+                            <div style="font-size: 0.8em; color: #666;">BMI</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <span style="background: ${bmiColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">
+                            ${record.bmi_category}
+                        </span>
+                    </div>
+                    ${record.notes ? `<div style="font-size: 0.9em; color: #666; font-style: italic;">備註: ${record.notes}</div>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        recordsDiv.innerHTML = html;
+    }
+
+    function getBMIColor(bmi) {
+        if (bmi < 18.5) return '#17a2b8'; // 體重過輕 - 藍色
+        else if (bmi < 24) return '#28a745'; // 正常體重 - 綠色
+        else if (bmi < 27) return '#ffc107'; // 體重過重 - 黃色
+        else if (bmi < 30) return '#fd7e14'; // 輕度肥胖 - 橙色
+        else if (bmi < 35) return '#dc3545'; // 中度肥胖 - 紅色
+        else return '#6f42c1'; // 重度肥胖 - 紫色
+    }
+
+    // 體重表單提交處理
+    document.addEventListener('DOMContentLoaded', function() {
+        const weightForm = document.getElementById('weightForm');
+        if (weightForm) {
+            weightForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(weightForm);
+                const weightData = {
+                    userId: window.globalUserId || 'FALLBACK_USER_ID',
+                    action: 'save',
+                    age: parseInt(formData.get('age')),
+                    height: parseFloat(formData.get('height')),
+                    weight: parseFloat(formData.get('weight')),
+                    recordDate: formData.get('recordDate'),
+                    notes: formData.get('notes') || ''
+                };
+                
+                try {
+                    const submitBtn = weightForm.querySelector('button[type="submit"]');
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '記錄中...';
+                    
+                    const res = await fetch('https://19224b22c5ce.ngrok-free.app/weight_exercise', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(weightData)
+                    });
+                    
+                    const result = await res.json();
+                    
+                    if (result.success) {
+                        alert(`體重記錄已保存！\nBMI: ${result.data.bmi}\n分類: ${result.data.bmi_category}`);
+                        weightForm.reset();
+                        // 重新載入體重記錄
+                        fetchWeightRecords();
+                    } else {
+                        alert('保存失敗: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('提交體重記錄時發生錯誤:', error);
+                    alert('提交失敗，請稍後再試');
+                } finally {
+                    const submitBtn = weightForm.querySelector('button[type="submit"]');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '記錄體重';
+                }
+            });
+        }
+    });
 
     function renderFoodDiary(monthDict) {
         const diaryDiv = document.getElementById('foodDiaryOutput');
