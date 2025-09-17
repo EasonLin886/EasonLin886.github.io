@@ -3281,8 +3281,8 @@
                         return key === selected;
                     });
                 } else {
-                    // 若選擇全部，仍依期間按鈕做篩選
-                    list = filterRecordsByRange(all, window.currentWeightRange || '1m');
+                    // 全部：顯示所有月份的完整清單（不受期間按鈕限制）
+                    list = all;
                 }
                 const chartType = document.getElementById('showBMIChart').classList.contains('active') ? 'bmi' : 'weight';
                 // 月份選單僅影響下方紀錄，不更新趨勢圖
