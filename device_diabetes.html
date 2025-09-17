@@ -1396,9 +1396,7 @@
                 fetchWeightRecords();
                 // 設定預設日期為今天
                 document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
-                setTimeout(() => {
-                    loadNutritionGoals();
-                }, 1000);
+                // 本分頁不載入營養素建議區塊，避免找不到DOM
             }
             // 當切換到 CGM 分析頁面時，自動載入資料
             if (targetSectionId === 'section-cgm-analysis') {
