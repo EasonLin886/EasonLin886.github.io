@@ -2754,6 +2754,8 @@
             if (result.success) {
                 // 儲存到全域變數供圖表切換使用
                 window.globalWeightRecords = result.data;
+                // 將最新一筆資料自動填入表單（不帶入備註）
+                populateWeightFormFromLatest(result.data);
                 renderWeightRecords(result.data);
             } else {
                 console.error('查詢體重記錄失敗:', result.message);
@@ -2767,6 +2769,10 @@
     }
 
     function renderWeightRecords(records) {
+        // 若有資料，預設先將最新一筆帶入表單（不覆蓋使用者已輸入的值）
+        if (Array.isArray(records) && records.length > 0) {
+            populateWeightFormFromLatest(records);
+        }
         const recordsDiv = document.getElementById('weightRecordsOutput');
         if (!records || records.length === 0) {
             recordsDiv.innerHTML = '<div style="color:#888;">查無體重記錄</div>';
@@ -2819,6 +2825,39 @@
 
     // 全域變數儲存圖表實例
     let weightTrendChart = null;
+
+    // 將最新一筆體重資料填入表單（只填 年齡/身高/體重/日期，不填備註）
+    function populateWeightFormFromLatest(records) {
+        try {
+            const weightForm = document.getElementById('weightForm');
+            if (!weightForm || !Array.isArray(records) || records.length === 0) return;
+
+            const ageInput = document.getElementById('age');
+            const heightInput = document.getElementById('height');
+            const weightInput = document.getElementById('weight');
+            const dateInput = document.getElementById('recordDate');
+
+            // 若使用者已經輸入了值（例如不是空字串），就不覆蓋
+            const isEmpty = (el) => el && (el.value === '' || el.value === null || el.value === undefined);
+
+            // 找到最新一筆（依 record_date 與 created_at 排序）
+            const latest = [...records].sort((a, b) => {
+                const da = new Date(a.record_date + ' ' + (a.created_at?.split(' ')[1] || '00:00:00'));
+                const db = new Date(b.record_date + ' ' + (b.created_at?.split(' ')[1] || '00:00:00'));
+                return db - da; // 新到舊
+            })[0];
+
+            if (!latest) return;
+
+            if (ageInput && isEmpty(ageInput) && typeof latest.age !== 'undefined') ageInput.value = latest.age;
+            if (heightInput && isEmpty(heightInput) && typeof latest.height !== 'undefined') heightInput.value = latest.height;
+            if (weightInput && isEmpty(weightInput) && typeof latest.weight !== 'undefined') weightInput.value = latest.weight;
+            if (dateInput && isEmpty(dateInput) && latest.record_date) dateInput.value = latest.record_date;
+            // 備註不帶入
+        } catch (e) {
+            console.error('自動填入最新體重資料發生錯誤:', e);
+        }
+    }
 
     function renderWeightTrendChart(records, chartType = 'both') {
         if (!records || records.length < 2) {
