@@ -2887,6 +2887,23 @@
         const weightData = sortedRecords.map(record => record.weight);
         const bmiData = sortedRecords.map(record => record.bmi);
 
+        // 計算Y軸的建議範圍；若只有兩點且相同，加入緩衝，確保呈現水平線
+        const calcRange = (arr, fallbackPad) => {
+            if (!arr || arr.length === 0) return {};
+            const minV = Math.min(...arr.map(v => Number(v)));
+            const maxV = Math.max(...arr.map(v => Number(v)));
+            if (minV === maxV) {
+                const pad = fallbackPad;
+                return { suggestedMin: minV - pad, suggestedMax: maxV + pad };
+            }
+            // 常規略微留白
+            const span = maxV - minV;
+            const pad = span * 0.05;
+            return { suggestedMin: minV - pad, suggestedMax: maxV + pad };
+        };
+        const weightRange = calcRange(weightData, 1);
+        const bmiRange = calcRange(bmiData, 0.5);
+
         // 根據圖表類型決定顯示的數據集
         let datasets = [];
         let scales = {
@@ -2915,7 +2932,8 @@
                 backgroundColor: 'rgba(40, 167, 69, 0.1)',
                 borderWidth: 3,
                 fill: true,
-                tension: 0.4,
+                tension: 0,
+                cubicInterpolationMode: 'default',
                 pointBackgroundColor: '#28a745',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
@@ -2942,7 +2960,9 @@
                 },
                 ticks: {
                     color: '#28a745'
-                }
+                },
+                suggestedMin: weightRange.suggestedMin,
+                suggestedMax: weightRange.suggestedMax
             };
         }
 
@@ -2954,7 +2974,8 @@
                 backgroundColor: 'rgba(0, 123, 255, 0.1)',
                 borderWidth: 3,
                 fill: true,
-                tension: 0.4,
+                tension: 0,
+                cubicInterpolationMode: 'default',
                 pointBackgroundColor: '#007bff',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
@@ -2983,7 +3004,9 @@
                     },
                     ticks: {
                         color: '#007bff'
-                    }
+                    },
+                    suggestedMin: bmiRange.suggestedMin,
+                    suggestedMax: bmiRange.suggestedMax
                 };
             } else {
                 scales.y1 = {
@@ -3004,7 +3027,9 @@
                     },
                     ticks: {
                         color: '#007bff'
-                    }
+                    },
+                    suggestedMin: bmiRange.suggestedMin,
+                    suggestedMax: bmiRange.suggestedMax
                 };
             }
         }
