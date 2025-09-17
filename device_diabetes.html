@@ -2923,7 +2923,7 @@
         }
     }
 
-    function renderWeightTrendChart(records, chartType = 'both') {
+    function renderWeightTrendChart(records, chartType = 'weight') {
         if (!records || records.length < 2) {
             document.getElementById('weightTrendChart').style.display = 'none';
             document.getElementById('chartNoData').style.display = 'block';
