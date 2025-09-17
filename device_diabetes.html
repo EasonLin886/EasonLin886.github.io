@@ -1115,6 +1115,24 @@
         <!-- 體重記錄顯示區域 -->
         <div class="weight-records-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
             <h3>體重記錄歷史</h3>
+            
+            <!-- 趨勢圖區域 -->
+            <div id="weightTrendChartContainer" style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #333;">體重趨勢圖</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="showWeightChart" class="chart-toggle-btn active" style="padding: 5px 15px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">體重</button>
+                        <button id="showBMIChart" class="chart-toggle-btn" style="padding: 5px 15px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">BMI</button>
+                    </div>
+                </div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="weightTrendChart"></canvas>
+                </div>
+                <div id="chartNoData" style="display: none; text-align: center; padding: 40px; color: #888;">
+                    需要至少2筆記錄才能顯示趨勢圖
+                </div>
+            </div>
+            
             <div id="weightRecordsOutput" style="padding: 10px;"></div>
         </div>
     </div>
@@ -2734,10 +2752,13 @@
             });
             const result = await res.json();
             if (result.success) {
+                // 儲存到全域變數供圖表切換使用
+                window.globalWeightRecords = result.data;
                 renderWeightRecords(result.data);
             } else {
                 console.error('查詢體重記錄失敗:', result.message);
                 document.getElementById('weightRecordsOutput').innerHTML = '<div style="color:#888;">查無體重記錄</div>';
+                window.globalWeightRecords = [];
             }
         } catch (error) {
             console.error('查詢體重記錄時發生錯誤:', error);
@@ -2749,8 +2770,16 @@
         const recordsDiv = document.getElementById('weightRecordsOutput');
         if (!records || records.length === 0) {
             recordsDiv.innerHTML = '<div style="color:#888;">查無體重記錄</div>';
+            // 隱藏趨勢圖
+            document.getElementById('weightTrendChartContainer').style.display = 'none';
             return;
         }
+        
+        // 顯示趨勢圖
+        document.getElementById('weightTrendChartContainer').style.display = 'block';
+        
+        // 繪製趨勢圖
+        renderWeightTrendChart(records);
         
         let html = '<div style="max-height: 400px; overflow-y: auto;">';
         records.forEach((record, index) => {
@@ -2786,6 +2815,214 @@
         });
         html += '</div>';
         recordsDiv.innerHTML = html;
+    }
+
+    // 全域變數儲存圖表實例
+    let weightTrendChart = null;
+
+    function renderWeightTrendChart(records, chartType = 'both') {
+        if (!records || records.length < 2) {
+            document.getElementById('weightTrendChart').style.display = 'none';
+            document.getElementById('chartNoData').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('weightTrendChart').style.display = 'block';
+        document.getElementById('chartNoData').style.display = 'none';
+
+        // 按日期排序（從舊到新）
+        const sortedRecords = [...records].sort((a, b) => new Date(a.record_date) - new Date(b.record_date));
+        
+        const ctx = document.getElementById('weightTrendChart').getContext('2d');
+        
+        // 銷毀現有圖表
+        if (weightTrendChart) {
+            weightTrendChart.destroy();
+        }
+
+        const labels = sortedRecords.map(record => {
+            const date = new Date(record.record_date);
+            return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' });
+        });
+
+        const weightData = sortedRecords.map(record => record.weight);
+        const bmiData = sortedRecords.map(record => record.bmi);
+
+        // 根據圖表類型決定顯示的數據集
+        let datasets = [];
+        let scales = {
+            x: {
+                display: true,
+                title: {
+                    display: true,
+                    text: '日期',
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                },
+                grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.1)'
+                }
+            }
+        };
+
+        if (chartType === 'weight' || chartType === 'both') {
+            datasets.push({
+                label: '體重 (kg)',
+                data: weightData,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#28a745',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            });
+            
+            scales.y = {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: '體重 (kg)',
+                    color: '#28a745',
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                },
+                grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.1)'
+                },
+                ticks: {
+                    color: '#28a745'
+                }
+            };
+        }
+
+        if (chartType === 'bmi' || chartType === 'both') {
+            datasets.push({
+                label: 'BMI',
+                data: bmiData,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#007bff',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                yAxisID: chartType === 'both' ? 'y1' : 'y'
+            });
+            
+            if (chartType === 'bmi') {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'BMI',
+                        color: '#007bff',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: '#007bff'
+                    }
+                };
+            } else {
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'BMI',
+                        color: '#007bff',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: {
+                        color: '#007bff'
+                    }
+                };
+            }
+        }
+
+        weightTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#ddd',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                const index = context[0].dataIndex;
+                                return sortedRecords[index].record_date;
+                            },
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const record = sortedRecords[index];
+                                if (context.dataset.label === '體重 (kg)') {
+                                    return `體重: ${record.weight} kg (BMI: ${record.bmi})`;
+                                } else {
+                                    return `BMI: ${record.bmi} (${record.bmi_category})`;
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: scales
+            }
+        });
     }
 
     function getBMIColor(bmi) {
@@ -2846,7 +3083,49 @@
                 }
             });
         }
+
+        // 圖表切換按鈕事件處理
+        const showWeightBtn = document.getElementById('showWeightChart');
+        const showBMIBtn = document.getElementById('showBMIChart');
+        
+        if (showWeightBtn && showBMIBtn) {
+            showWeightBtn.addEventListener('click', function() {
+                toggleChartView('weight');
+            });
+            
+            showBMIBtn.addEventListener('click', function() {
+                toggleChartView('bmi');
+            });
+        }
     });
+
+    // 圖表切換功能
+    function toggleChartView(type) {
+        const weightBtn = document.getElementById('showWeightChart');
+        const bmiBtn = document.getElementById('showBMIChart');
+        
+        // 更新按鈕樣式
+        if (type === 'weight') {
+            weightBtn.classList.add('active');
+            weightBtn.style.background = '#007bff';
+            weightBtn.style.color = 'white';
+            bmiBtn.classList.remove('active');
+            bmiBtn.style.background = 'white';
+            bmiBtn.style.color = '#6c757d';
+        } else {
+            bmiBtn.classList.add('active');
+            bmiBtn.style.background = '#007bff';
+            bmiBtn.style.color = 'white';
+            weightBtn.classList.remove('active');
+            weightBtn.style.background = 'white';
+            weightBtn.style.color = '#6c757d';
+        }
+        
+        // 重新繪製圖表
+        if (window.globalWeightRecords && window.globalWeightRecords.length >= 2) {
+            renderWeightTrendChart(window.globalWeightRecords, type);
+        }
+    }
 
     function renderFoodDiary(monthDict) {
         const diaryDiv = document.getElementById('foodDiaryOutput');
