@@ -2816,13 +2816,21 @@
         const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
         const fmtHeader = (key) => { const [y,m]=key.split('-'); return `${y}年 ${monthNames[parseInt(m,10)-1]}`; };
 
-        // 準備月份選單
+        // 準備月份選單（使用全量資料列出所有月份，避免因目前篩選而缺少選項）
         const selectEl = document.getElementById('weightMonthSelect');
         if (selectEl) {
-            const monthKeys = Object.keys(groups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01'));
+            const all = Array.isArray(window.globalWeightRecords) ? window.globalWeightRecords : records;
+            const allGroups = {};
+            (all || []).forEach(r => {
+                if (!r || !r.record_date) return;
+                const d = new Date(r.record_date);
+                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                if (!allGroups[key]) allGroups[key] = 0;
+                allGroups[key] += 1;
+            });
+            const monthKeys = Object.keys(allGroups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01'));
             const currentVal = selectEl.value;
             selectEl.innerHTML = '<option value="all">全部</option>' + monthKeys.map(k => `<option value="${k}">${fmtHeader(k)}</option>`).join('');
-            // 若已有選定值，保留；否則預設 all
             if (currentVal && monthKeys.includes(currentVal)) selectEl.value = currentVal; else selectEl.value = 'all';
         }
 
