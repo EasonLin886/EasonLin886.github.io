@@ -2772,7 +2772,10 @@
             const filtered = filterRecordsByRange(result.data, window.currentWeightRange);
             // 將最新一筆資料自動填入表單（不帶入備註）
             populateWeightFormFromLatest(filtered.length ? filtered : result.data);
-            renderWeightRecords(filtered);
+            // 列表顯示使用全量資料，交由月份選單決定顯示區間
+            renderWeightRecords(result.data);
+            // 初始繪製趨勢圖使用期間篩選資料
+            renderWeightTrendChart(filtered);
         } else {
                 console.error('查詢體重記錄失敗:', result.message);
                 document.getElementById('weightRecordsOutput').innerHTML = '<div style="color:#888;">查無體重記錄</div>';
@@ -3282,8 +3285,8 @@
                     list = filterRecordsByRange(all, window.currentWeightRange || '1m');
                 }
                 const chartType = document.getElementById('showBMIChart').classList.contains('active') ? 'bmi' : 'weight';
+                // 月份選單僅影響下方紀錄，不更新趨勢圖
                 renderWeightRecords(list);
-                renderWeightTrendChart(list, chartType);
             });
         }
     });
