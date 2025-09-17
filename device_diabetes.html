@@ -1141,11 +1141,11 @@
                         <button id="showBMIChart" class="chart-toggle-btn" style="padding: 5px 15px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">BMI</button>
                     </div>
                 </div>
+                <!-- 體重趨勢分析建議（置於圖表上方） -->
+                <div id="weightTrendAdvice" style="margin: 2px 0 10px 0; padding: 10px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; color:#334155; font-size: 0.95em;"></div>
                 <div style="position: relative; height: 300px;">
                     <canvas id="weightTrendChart"></canvas>
                 </div>
-                <!-- 體重趨勢分析建議 -->
-                <div id="weightTrendAdvice" style="margin-top: 10px; padding: 10px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; color:#334155; font-size: 0.95em;"></div>
                 <div id="chartNoData" style="display: none; text-align: center; padding: 40px; color: #888;">
                     需要至少2筆記錄才能顯示趨勢圖
                 </div>
@@ -2998,6 +2998,30 @@
         const weightData = sortedRecords.map(record => record.weight);
         const bmiData = sortedRecords.map(record => record.bmi);
 
+        // 先行產生一次趨勢分析建議（不依賴圖表事件）
+        try {
+            const adviceEl = document.getElementById('weightTrendAdvice');
+            if (adviceEl) {
+                const arr = (chartType === 'bmi') ? bmiData : weightData;
+                if (!arr || arr.length === 0) {
+                    adviceEl.textContent = '';
+                } else if (arr.length === 1) {
+                    adviceEl.textContent = (chartType === 'bmi')
+                        ? `僅有 1 筆 BMI 紀錄，平均 ${arr[0].toFixed(1)}。持續紀錄可更準確評估趨勢。`
+                        : `僅有 1 筆體重紀錄：${arr[0].toFixed(1)} kg。建議持續紀錄以觀察變化。`;
+                } else {
+                    const first = arr[0];
+                    const last = arr[arr.length - 1];
+                    const delta = last - first;
+                    const avg = arr.reduce((a,b)=>a+b,0) / arr.length;
+                    const trend = Math.abs(delta) < 0.1 ? '持平' : (delta > 0 ? '上升' : '下降');
+                    adviceEl.textContent = (chartType === 'bmi')
+                        ? `近況${trend}，平均 BMI ${avg.toFixed(1)}；與起點相比 ${(delta>=0?'+':'')}${delta.toFixed(1)}。建議規律運動與均衡飲食。`
+                        : `近況${trend}，平均體重 ${avg.toFixed(1)} kg；與起點相比 ${(delta>=0?'+':'')}${delta.toFixed(1)} kg。建議每週≥150分鐘中等強度運動，並持續紀錄。`;
+                }
+            }
+        } catch(e) { /* ignore */ }
+
         // 計算Y軸的建議範圍；若只有兩點且相同，加入緩衝，確保呈現水平線
         const calcRange = (arr, fallbackPad) => {
             if (!arr || arr.length === 0) return {};
@@ -3193,25 +3217,6 @@
                                 }
                             }
                         }
-                    },
-                    // 自動產生一段簡短的趨勢分析建議
-                    afterDraw: () => {
-                        try {
-                            const adviceEl = document.getElementById('weightTrendAdvice');
-                            if (!adviceEl) return;
-                            const values = (chartType === 'bmi') ? bmiData : weightData;
-                            if (!values || values.length === 0) { adviceEl.textContent = ''; return; }
-                            const first = values[0];
-                            const last = values[values.length - 1];
-                            const delta = last - first;
-                            const avg = values.reduce((a,b)=>a+b,0) / values.length;
-                            const trend = Math.abs(delta) < 0.1 ? '持平' : (delta > 0 ? '上升' : '下降');
-                            if (chartType === 'bmi') {
-                                adviceEl.textContent = `近況${trend}，平均 BMI ${avg.toFixed(1)}。建議維持規律作息與飲食比例。`;
-                            } else {
-                                adviceEl.textContent = `近況${trend}，平均體重 ${avg.toFixed(1)} kg；與起點相比 ${delta>=0?'+':''}${delta.toFixed(1)} kg。建議配合每週運動與飲食紀錄，穩定調整。`;
-                            }
-                        } catch(e) { /* ignore */ }
                     }
                 },
                 scales: scales
