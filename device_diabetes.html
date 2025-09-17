@@ -1160,6 +1160,61 @@
             <div id="weightRecordsOutput" style="padding: 10px;"></div>
             </div>
         </div>
+
+        <!-- 運動紀錄區域 -->
+        <div class="exercise-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff; margin-top:20px;">
+            <div style="display:flex; align-items:center; justify-content: space-between;">
+                <h3 style="margin:0;">運動紀錄</h3>
+            </div>
+
+            <!-- 運動表單：種類/強度/時間（分鐘）/日期時間 -->
+            <form id="exerciseForm" style="margin-top:12px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom:10px;">
+                    <div>
+                        <label for="exType">運動種類</label>
+                        <select id="exType" name="exType" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                            <option value="">請選擇</option>
+                            <option value="步行">步行</option>
+                            <option value="慢跑">慢跑</option>
+                            <option value="騎自行車">騎自行車</option>
+                            <option value="游泳">游泳</option>
+                            <option value="重量訓練">重量訓練</option>
+                            <option value="瑜珈/伸展">瑜珈/伸展</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="exIntensity">強度</label>
+                        <select id="exIntensity" name="exIntensity" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                            <option value="低強度">低強度（如散步、輕度伸展）</option>
+                            <option value="中強度" selected>中強度（如快走、慢跑）</option>
+                            <option value="高強度">高強度（如衝刺、間歇）</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom:10px;">
+                    <div>
+                        <label for="exDuration">時間（分鐘）</label>
+                        <input type="number" id="exDuration" name="exDuration" min="5" max="240" step="5" value="30" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
+                    </div>
+                    <div>
+                        <label for="exDatetime">日期與時間</label>
+                        <input type="datetime-local" id="exDatetime" name="exDatetime" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
+                    </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label for="exNote">備註（可選）</label>
+                    <input type="text" id="exNote" name="exNote" placeholder="例如：路跑、心率、體感..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
+                </div>
+                <button type="submit" style="background-color:#198754; color:white; padding:10px 16px; border:none; border-radius:6px; cursor:pointer;">新增運動</button>
+            </form>
+
+            <!-- 過去運動紀錄（分月） -->
+            <div style="margin-top:16px; display:flex; align-items:center; gap:8px;">
+                <div style="font-size:13px; color:#555;">運動月份</div>
+                <select id="exMonthSelect" style="padding:6px 10px; border:1px solid #ced4da; border-radius:6px; background:#fff; color:#333; font-size:13px; cursor:pointer;"></select>
+            </div>
+            <div id="exerciseRecords" style="margin-top:10px;"></div>
+        </div>
     </div>
 
     <div id="section-feedback" class="content-section" style="display: none;">
@@ -3382,7 +3437,107 @@
                 toggleWeightHistoryBtn.textContent = hidden ? '隱藏' : '顯示';
             });
         }
+
+        // 運動表單提交
+        const exerciseForm = document.getElementById('exerciseForm');
+        if (exerciseForm) {
+            exerciseForm.addEventListener('submit', async function(e){
+                e.preventDefault();
+                const fd = new FormData(exerciseForm);
+                const payload = {
+                    userId: window.globalUserId || 'FALLBACK_USER_ID',
+                    action: 'save',
+                    exType: fd.get('exType'),
+                    exIntensity: fd.get('exIntensity'),
+                    exDuration: parseInt(fd.get('exDuration')||0),
+                    exDatetime: fd.get('exDatetime'),
+                    exNote: fd.get('exNote')||''
+                };
+                try {
+                    const res = await fetch('https://19224b22c5ce.ngrok-free.app/exercise', {
+                        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+                    });
+                    const ret = await res.json();
+                    if (ret.success) {
+                        alert('已新增運動紀錄');
+                        exerciseForm.reset();
+                        await loadExerciseRecords();
+                    } else {
+                        alert('新增失敗: '+ (ret.message||''));
+                    }
+                } catch(err) { console.error(err); alert('新增失敗'); }
+            });
+        }
+
+        // 初始化運動紀錄
+        loadExerciseRecords();
     });
+
+    async function loadExerciseRecords(){
+        try {
+            const userId = window.globalUserId || 'FALLBACK_USER_ID';
+            const res = await fetch('https://19224b22c5ce.ngrok-free.app/exercise', {
+                method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'get', userId})
+            });
+            const ret = await res.json();
+            if (!ret.success) { document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">查無運動紀錄</div>'; return; }
+            const rows = ret.data || [];
+            // 建立月份清單
+            const group = {};
+            rows.forEach(r=>{
+                const d = new Date(r.start_time);
+                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                if(!group[key]) group[key]=[]; group[key].push(r);
+            });
+            const select = document.getElementById('exMonthSelect');
+            if (select) {
+                const keys = Object.keys(group).sort((a,b)=> new Date(b+'-01')-new Date(a+'-01'));
+                const cur = select.value;
+                select.innerHTML = '<option value="all">全部</option>' + keys.map(k=>`<option value="${k}">${k.replace('-', '年 ')}月</option>`).join('');
+                if (cur && keys.includes(cur)) select.value = cur;
+            }
+            renderExerciseList(rows);
+            // 綁定月份切換
+            const select2 = document.getElementById('exMonthSelect');
+            if (select2 && !select2._binded) {
+                select2.addEventListener('change', ()=>{
+                    const v = select2.value;
+                    const filtered = v==='all'? rows: rows.filter(r=>{
+                        const d = new Date(r.start_time); const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; return k===v;});
+                    renderExerciseList(filtered);
+                });
+                select2._binded = true;
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function renderExerciseList(rows){
+        const box = document.getElementById('exerciseRecords');
+        if (!rows || rows.length===0){ box.innerHTML = '<div style="color:#888;">查無運動紀錄</div>'; return; }
+        let html='';
+        rows.sort((a,b)=> new Date(b.start_time)-new Date(a.start_time));
+        rows.forEach(r=>{
+            const d = new Date(r.start_time);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid #e9ecef; border-radius:8px; margin-top:8px;">
+                <div>
+                    <div style="font-weight:700; color:#0d6efd;">${r.ex_type}（${r.intensity}）</div>
+                    <div style="font-size:12px; color:#666;">${dateStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
+                </div>
+                <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer;">刪除</button>
+            </div>`;
+        });
+        box.innerHTML = html;
+    }
+
+    async function deleteExercise(id){
+        if(!confirm('確認刪除此筆運動紀錄？')) return;
+        const userId = window.globalUserId || 'FALLBACK_USER_ID';
+        const res = await fetch('https://19224b22c5ce.ngrok-free.app/exercise', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'delete', userId, id}) });
+        const ret = await res.json();
+        if(ret.success){ await loadExerciseRecords(); } else { alert('刪除失敗'); }
+    }
 
     // 圖表切換功能
     function toggleChartView(type) {
