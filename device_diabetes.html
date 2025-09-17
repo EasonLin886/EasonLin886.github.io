@@ -1080,7 +1080,11 @@
         
         <!-- 體重記錄表單 -->
         <div class="weight-form-container" style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
-            <h3>體重記錄</h3>
+            <div style="display:flex; align-items:center; justify-content: space-between;">
+                <h3 style="margin:0;">體重記錄</h3>
+                <button id="toggleWeightFormBtn" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">隱藏</button>
+            </div>
+            <div id="weightFormContent" style="margin-top:12px;">
             <form id="weightForm">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                     <div>
@@ -1110,11 +1114,16 @@
                     記錄體重
                 </button>
             </form>
+            </div>
         </div>
 
         <!-- 體重記錄顯示區域 -->
         <div class="weight-records-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
-            <h3>體重記錄歷史</h3>
+            <div style="display:flex; align-items:center; justify-content: space-between;">
+                <h3 style="margin:0;">體重記錄歷史</h3>
+                <button id="toggleWeightHistoryBtn" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">隱藏</button>
+            </div>
+            <div id="weightHistoryContent" style="margin-top:12px;">
             
             <!-- 趨勢圖區域 -->
             <div id="weightTrendChartContainer" style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -1135,6 +1144,8 @@
                 <div style="position: relative; height: 300px;">
                     <canvas id="weightTrendChart"></canvas>
                 </div>
+                <!-- 體重趨勢分析建議 -->
+                <div id="weightTrendAdvice" style="margin-top: 10px; padding: 10px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; color:#334155; font-size: 0.95em;"></div>
                 <div id="chartNoData" style="display: none; text-align: center; padding: 40px; color: #888;">
                     需要至少2筆記錄才能顯示趨勢圖
                 </div>
@@ -1147,6 +1158,7 @@
             </div>
 
             <div id="weightRecordsOutput" style="padding: 10px;"></div>
+            </div>
         </div>
     </div>
 
@@ -3183,6 +3195,25 @@
                                 }
                             }
                         }
+                    },
+                    // 自動產生一段簡短的趨勢分析建議
+                    afterDraw: () => {
+                        try {
+                            const adviceEl = document.getElementById('weightTrendAdvice');
+                            if (!adviceEl) return;
+                            const values = (chartType === 'bmi') ? bmiData : weightData;
+                            if (!values || values.length === 0) { adviceEl.textContent = ''; return; }
+                            const first = values[0];
+                            const last = values[values.length - 1];
+                            const delta = last - first;
+                            const avg = values.reduce((a,b)=>a+b,0) / values.length;
+                            const trend = Math.abs(delta) < 0.1 ? '持平' : (delta > 0 ? '上升' : '下降');
+                            if (chartType === 'bmi') {
+                                adviceEl.textContent = `近況${trend}，平均 BMI ${avg.toFixed(1)}。建議維持規律作息與飲食比例。`;
+                            } else {
+                                adviceEl.textContent = `近況${trend}，平均體重 ${avg.toFixed(1)} kg；與起點相比 ${delta>=0?'+':''}${delta.toFixed(1)} kg。建議配合每週運動與飲食紀錄，穩定調整。`;
+                            }
+                        } catch(e) { /* ignore */ }
                     }
                 },
                 scales: scales
@@ -3324,6 +3355,28 @@
                 const chartType = document.getElementById('showBMIChart').classList.contains('active') ? 'bmi' : 'weight';
                 // 月份選單僅影響下方紀錄，不更新趨勢圖
                 renderWeightRecords(list);
+            });
+        }
+
+        // 顯示/隱藏：體重記錄表單
+        const toggleWeightFormBtn = document.getElementById('toggleWeightFormBtn');
+        const weightFormContent = document.getElementById('weightFormContent');
+        if (toggleWeightFormBtn && weightFormContent) {
+            toggleWeightFormBtn.addEventListener('click', function() {
+                const hidden = weightFormContent.style.display === 'none';
+                weightFormContent.style.display = hidden ? 'block' : 'none';
+                toggleWeightFormBtn.textContent = hidden ? '隱藏' : '顯示';
+            });
+        }
+
+        // 顯示/隱藏：體重記錄歷史
+        const toggleWeightHistoryBtn = document.getElementById('toggleWeightHistoryBtn');
+        const weightHistoryContent = document.getElementById('weightHistoryContent');
+        if (toggleWeightHistoryBtn && weightHistoryContent) {
+            toggleWeightHistoryBtn.addEventListener('click', function() {
+                const hidden = weightHistoryContent.style.display === 'none';
+                weightHistoryContent.style.display = hidden ? 'block' : 'none';
+                toggleWeightHistoryBtn.textContent = hidden ? '隱藏' : '顯示';
             });
         }
     });
