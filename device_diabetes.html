@@ -2859,7 +2859,7 @@
                 <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; margin-bottom: 12px;">
                         <div style="text-align: right; color: #6c757d; font-size: 12px; padding-top: 12px;">${record.record_date}<div style=\"font-size:11px;\">${timeStr}</div></div>
                         <div style="position: relative;">
-                            <div style="padding: 14px; background: white; border-radius: 10px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                            <div style="padding: 14px; background: white; border-radius: 10px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative;">
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                                     <div style="text-align:center;">
                                         <div style="font-size:1.1em; font-weight:700; color:#007bff;">${record.height} cm</div>
@@ -2874,8 +2874,9 @@
                                         <div style="font-size:0.8em; color:#666;">BMI</div>
                                     </div>
                                 </div>
-                                <div style="text-align:center; margin-top:8px;">
+                                <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:8px;">
                                     <span style="background:${bmiColor}; color:white; padding:4px 8px; border-radius:12px; font-size:0.8em; font-weight:600;">${record.bmi_category}</span>
+                                    <button onclick="deleteWeightRecord(${record.id})" style="margin-left:8px; background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:6px; font-size:12px; cursor:pointer;">刪除</button>
                                 </div>
                             </div>
                         </div>
@@ -2885,6 +2886,42 @@
         });
         html += '</div>';
         recordsDiv.innerHTML = html;
+    }
+
+    // 刪除體重紀錄
+    async function deleteWeightRecord(id) {
+        try {
+            if (!confirm('確定要刪除此筆體重紀錄嗎？')) return;
+            const userId = window.globalUserId || 'FALLBACK_USER_ID';
+            const res = await fetch('https://19224b22c5ce.ngrok-free.app/weight_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete', userId, id })
+            });
+            const result = await res.json();
+            if (result.success) {
+                // 重新拉取最新資料，並維持目前的月份與期間狀態
+                await fetchWeightRecords();
+                // 若選了特定月份，觸發一次渲染
+                const monthSelect = document.getElementById('weightMonthSelect');
+                if (monthSelect && monthSelect.value && monthSelect.value !== 'all') {
+                    const all = window.globalWeightRecords || [];
+                    const selected = monthSelect.value;
+                    const list = all.filter(r => {
+                        if (!r.record_date) return false;
+                        const d = new Date(r.record_date);
+                        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        return key === selected;
+                    });
+                    renderWeightRecords(list);
+                }
+            } else {
+                alert('刪除失敗：' + (result.message || '未知錯誤'));
+            }
+        } catch (e) {
+            console.error('刪除體重紀錄發生錯誤:', e);
+            alert('刪除失敗，請稍後再試');
+        }
     }
 
     // 全域變數儲存圖表實例
