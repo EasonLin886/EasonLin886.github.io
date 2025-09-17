@@ -1118,9 +1118,16 @@
             
             <!-- 趨勢圖區域 -->
             <div id="weightTrendChartContainer" style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
                     <h4 style="margin: 0; color: #333;">體重趨勢圖</h4>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 8px; align-items:center;">
+                        <button id="range-1w" class="range-toggle-btn" style="padding: 5px 10px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">1週</button>
+                        <button id="range-1m" class="range-toggle-btn active" style="padding: 5px 10px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">1個月</button>
+                        <button id="range-3m" class="range-toggle-btn" style="padding: 5px 10px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">3個月</button>
+                        <button id="range-6m" class="range-toggle-btn" style="padding: 5px 10px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">半年</button>
+                        <button id="range-1y" class="range-toggle-btn" style="padding: 5px 10px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">1年</button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
                         <button id="showWeightChart" class="chart-toggle-btn active" style="padding: 5px 15px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">體重</button>
                         <button id="showBMIChart" class="chart-toggle-btn" style="padding: 5px 15px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">BMI</button>
                     </div>
@@ -2751,13 +2758,16 @@
                 })
             });
             const result = await res.json();
-            if (result.success) {
-                // 儲存到全域變數供圖表切換使用
-                window.globalWeightRecords = result.data;
-                // 將最新一筆資料自動填入表單（不帶入備註）
-                populateWeightFormFromLatest(result.data);
-                renderWeightRecords(result.data);
-            } else {
+        if (result.success) {
+            // 儲存到全域變數供圖表切換使用
+            window.globalWeightRecords = result.data;
+            // 設定預設期間為1個月
+            window.currentWeightRange = window.currentWeightRange || '1m';
+            const filtered = filterRecordsByRange(result.data, window.currentWeightRange);
+            // 將最新一筆資料自動填入表單（不帶入備註）
+            populateWeightFormFromLatest(filtered.length ? filtered : result.data);
+            renderWeightRecords(filtered);
+        } else {
                 console.error('查詢體重記錄失敗:', result.message);
                 document.getElementById('weightRecordsOutput').innerHTML = '<div style="color:#888;">查無體重記錄</div>';
                 window.globalWeightRecords = [];
@@ -3161,6 +3171,46 @@
                 toggleChartView('bmi');
             });
         }
+
+        // 期間切換按鈕事件
+        const rangeButtons = [
+            { id: 'range-1w', key: '1w' },
+            { id: 'range-1m', key: '1m' },
+            { id: 'range-3m', key: '3m' },
+            { id: 'range-6m', key: '6m' },
+            { id: 'range-1y', key: '1y' }
+        ];
+        rangeButtons.forEach(rb => {
+            const el = document.getElementById(rb.id);
+            if (el) {
+                el.addEventListener('click', function() {
+                    // 更新按鈕樣式
+                    rangeButtons.forEach(rbb => {
+                        const e2 = document.getElementById(rbb.id);
+                        if (e2) {
+                            if (rbb.id === rb.id) {
+                                e2.classList.add('active');
+                                e2.style.background = '#007bff';
+                                e2.style.color = 'white';
+                                e2.style.borderColor = '#007bff';
+                            } else {
+                                e2.classList.remove('active');
+                                e2.style.background = 'white';
+                                e2.style.color = '#6c757d';
+                                e2.style.borderColor = '#6c757d';
+                            }
+                        }
+                    });
+
+                    // 設定目前期間並重繪
+                    window.currentWeightRange = rb.key;
+                    const chartType = document.getElementById('showBMIChart').classList.contains('active') ? 'bmi' : 'weight';
+                    const filtered = filterRecordsByRange(window.globalWeightRecords || [], rb.key);
+                    renderWeightRecords(filtered);
+                    renderWeightTrendChart(filtered, chartType);
+                });
+            }
+        });
     });
 
     // 圖表切換功能
@@ -3185,9 +3235,34 @@
             weightBtn.style.color = '#6c757d';
         }
         
-        // 重新繪製圖表
+        // 重新繪製圖表（依當前期間過濾）
         if (window.globalWeightRecords && window.globalWeightRecords.length >= 2) {
-            renderWeightTrendChart(window.globalWeightRecords, type);
+            const filtered = filterRecordsByRange(window.globalWeightRecords, window.currentWeightRange || '1m');
+            renderWeightTrendChart(filtered, type);
+        }
+    }
+
+    // 期間過濾：1w/1m/3m/6m/1y
+    function filterRecordsByRange(records, rangeKey) {
+        try {
+            const now = new Date();
+            let startDate = new Date(now);
+            if (rangeKey === '1w') startDate.setDate(now.getDate() - 7);
+            else if (rangeKey === '1m') startDate.setMonth(now.getMonth() - 1);
+            else if (rangeKey === '3m') startDate.setMonth(now.getMonth() - 3);
+            else if (rangeKey === '6m') startDate.setMonth(now.getMonth() - 6);
+            else if (rangeKey === '1y') startDate.setFullYear(now.getFullYear() - 1);
+            else startDate.setMonth(now.getMonth() - 1);
+
+            return (records || []).filter(r => {
+                if (!r.record_date) return false;
+                const d = new Date(r.record_date);
+                // 包含起始日與今日
+                return d >= new Date(startDate.toDateString()) && d <= now;
+            }).sort((a,b)=> new Date(a.record_date) - new Date(b.record_date));
+        } catch (e) {
+            console.error('期間過濾錯誤:', e);
+            return records || [];
         }
     }
 
