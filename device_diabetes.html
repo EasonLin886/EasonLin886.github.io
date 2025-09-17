@@ -1140,6 +1140,12 @@
                 </div>
             </div>
             
+            <!-- 月份過濾選單 -->
+            <div id="weightMonthFilter" style="display: flex; align-items: center; gap: 8px; margin: 6px 10px 10px 10px;">
+                <div style="font-size: 13px; color: #555;">月份</div>
+                <select id="weightMonthSelect" style="padding: 6px 10px; border: 1px solid #ced4da; border-radius: 6px; background: #fff; color: #333; font-size: 13px; cursor: pointer;"></select>
+            </div>
+
             <div id="weightRecordsOutput" style="padding: 10px;"></div>
         </div>
     </div>
@@ -2810,8 +2816,23 @@
         const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
         const fmtHeader = (key) => { const [y,m]=key.split('-'); return `${y}年 ${monthNames[parseInt(m,10)-1]}`; };
 
+        // 準備月份選單
+        const selectEl = document.getElementById('weightMonthSelect');
+        if (selectEl) {
+            const monthKeys = Object.keys(groups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01'));
+            const currentVal = selectEl.value;
+            selectEl.innerHTML = '<option value="all">全部</option>' + monthKeys.map(k => `<option value="${k}">${fmtHeader(k)}</option>`).join('');
+            // 若已有選定值，保留；否則預設 all
+            if (currentVal && monthKeys.includes(currentVal)) selectEl.value = currentVal; else selectEl.value = 'all';
+        }
+
         let html = '<div style="max-height: 420px; overflow-y: auto; padding-right: 2px;">';
-        Object.keys(groups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01')).forEach(key => {
+        const renderKeys = (() => {
+            const selected = selectEl ? selectEl.value : 'all';
+            const keys = Object.keys(groups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01'));
+            return selected === 'all' ? keys : keys.filter(k => k === selected);
+        })();
+        renderKeys.forEach(key => {
             const arr = groups[key];
             html += `
                 <div style="position: sticky; top: 0; z-index: 1; background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e9ecef; border-left: 4px solid #0d6efd; padding: 8px 12px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -2824,11 +2845,11 @@
                 const bmiColor = getBMIColor(record.bmi);
                 const timeStr = (record.created_at||'').split(' ')[1]||'';
                 html += `
-                    <div style="display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: start; margin-bottom: 12px;">
-                        <div style="text-align: right; color: #6c757d; font-size: 12px; padding-top: 6px;">${record.record_date}<div style=\"font-size:11px;\">${timeStr}</div></div>
+                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; margin-bottom: 12px;">
+                        <div style="text-align: right; color: #6c757d; font-size: 12px; padding-top: 12px;">${record.record_date}<div style=\"font-size:11px;\">${timeStr}</div></div>
                         <div style="position: relative;">
-                            <div style="position:absolute; left:-20px; top:14px; width:10px; height:10px; background:${bmiColor}; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,0.05);"></div>
-                            <div style="margin-left: 0; padding: 14px; background: white; border-radius: 10px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                            <div style="position:absolute; left:-8px; top:18px; width:8px; height:8px; background:${bmiColor}; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,0.05);"></div>
+                            <div style="margin-left: 6px; padding: 14px; background: white; border-radius: 10px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                                     <div style="text-align:center;">
                                         <div style="font-size:1.1em; font-weight:700; color:#007bff;">${record.height} cm</div>
@@ -3234,6 +3255,30 @@
                 });
             }
         });
+
+        // 月份選單事件
+        const monthSelect = document.getElementById('weightMonthSelect');
+        if (monthSelect) {
+            monthSelect.addEventListener('change', function() {
+                const all = window.globalWeightRecords || [];
+                const selected = monthSelect.value;
+                let list = all;
+                if (selected && selected !== 'all') {
+                    list = all.filter(r => {
+                        if (!r.record_date) return false;
+                        const d = new Date(r.record_date);
+                        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        return key === selected;
+                    });
+                } else {
+                    // 若選擇全部，仍依期間按鈕做篩選
+                    list = filterRecordsByRange(all, window.currentWeightRange || '1m');
+                }
+                const chartType = document.getElementById('showBMIChart').classList.contains('active') ? 'bmi' : 'weight';
+                renderWeightRecords(list);
+                renderWeightTrendChart(list, chartType);
+            });
+        }
     });
 
     // 圖表切換功能
