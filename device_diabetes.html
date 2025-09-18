@@ -1191,23 +1191,21 @@
                         </select>
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom:10px;">
+                <div style="margin-bottom:10px;">
+                    <label for="exDuration">時間（分鐘）</label>
                     <div>
-                        <label for="exDuration">時間（分鐘）</label>
-                        <div>
-                            <div style="margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                                <button type="button" class="exDurBtn" data-min="15" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">15 分鐘</button>
-                                <button type="button" class="exDurBtn" data-min="30" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">30 分鐘</button>
-                                <button type="button" class="exDurBtn" data-min="45" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">45 分鐘</button>
-                                <button type="button" class="exDurBtn" data-min="60" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">60 分鐘</button>
-                            </div>
-                            <input type="number" id="exDuration" name="exDuration" min="5" max="240" step="5" value="30" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
+                        <div style="margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="exDurBtn" data-min="15" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">15</button>
+                            <button type="button" class="exDurBtn" data-min="30" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">30</button>
+                            <button type="button" class="exDurBtn" data-min="45" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">45</button>
+                            <button type="button" class="exDurBtn" data-min="60" style="padding:6px 10px; border:1px solid #ced4da; background:#fff; border-radius:20px; cursor:pointer;">60</button>
                         </div>
+                        <input type="number" id="exDuration" name="exDuration" min="5" max="240" step="5" value="30" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
                     </div>
-                    <div>
-                        <label for="exDatetime">日期與時間</label>
-                        <input type="datetime-local" id="exDatetime" name="exDatetime" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
-                    </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label for="exDatetime">日期與時間</label>
+                    <input type="datetime-local" id="exDatetime" name="exDatetime" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
                 </div>
                 <div style="margin-bottom:10px;">
                     <label for="exNote">備註（可選）</label>
