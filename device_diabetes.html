@@ -1247,9 +1247,15 @@
             </div>
             <div id="exerciseRecords" style="margin-top:10px;"></div>
             
-            <!-- 當週卡路里消耗線圖 -->
+            <!-- 當週運動趨勢圖 -->
             <div id="weeklyCalorieChart" style="margin-top:20px; padding:15px; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                <h4 style="margin:0 0 12px 0; color:#333;">當週運動趨勢</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="margin:0; color:#333;">當週運動趨勢</h4>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="showCalorieChart" class="chart-toggle-btn active" style="padding: 6px 12px; border: 1px solid #28a745; background: #28a745; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">卡路里</button>
+                        <button id="showDurationChart" class="chart-toggle-btn" style="padding: 6px 12px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; font-size: 12px;">運動時間</button>
+                    </div>
+                </div>
                 <div style="position: relative; height: 300px; width: 100%;">
                     <canvas id="calorieChart"></canvas>
                 </div>
@@ -3610,8 +3616,33 @@
             '瑜珈/伸展': { '低強度': 3.0, '中強度': 4.2, '高強度': 5.0 }
         };
 
+        // 圖表切換按鈕
+        const showCalorieBtn = document.getElementById('showCalorieChart');
+        const showDurationBtn = document.getElementById('showDurationChart');
+        
+        if (showCalorieBtn) {
+            showCalorieBtn.addEventListener('click', function() {
+                window.currentChartType = 'calorie';
+                updateChartToggleButtons();
+                if (window.currentWeekGroups && window.currentWeekStart) {
+                    renderWeeklyCalorieChart(window.currentWeekGroups, window.currentWeekStart);
+                }
+            });
+        }
+        
+        if (showDurationBtn) {
+            showDurationBtn.addEventListener('click', function() {
+                window.currentChartType = 'duration';
+                updateChartToggleButtons();
+                if (window.currentWeekGroups && window.currentWeekStart) {
+                    renderWeeklyCalorieChart(window.currentWeekGroups, window.currentWeekStart);
+                }
+            });
+        }
+
         // 初始化運動紀錄（但不自動載入）
         window.currentExerciseWeek = 0; // 0 = 本週
+        window.currentChartType = 'calorie'; // 預設顯示卡路里
         // 預設選擇今天
         const today = new Date();
         const todayDay = today.getDay(); // 0=週日, 1=週一
@@ -3673,8 +3704,13 @@
                 });
             });
             
+            // 保存週數據供圖表切換使用
+            window.currentWeekGroups = weekGroups;
+            window.currentWeekStart = weekStart;
+            
             renderExerciseListByWeek(weekGroups, weekStart);
             updateDayButtons();
+            updateChartToggleButtons();
             renderWeeklyCalorieChart(weekGroups, weekStart);
             updateWeeklySummary(weekGroups);
         } catch (e) { 
@@ -3696,6 +3732,30 @@
                 btn.style.border = '1px solid #6c757d';
             }
         });
+    }
+
+    function updateChartToggleButtons() {
+        const showCalorieBtn = document.getElementById('showCalorieChart');
+        const showDurationBtn = document.getElementById('showDurationChart');
+        const chartType = window.currentChartType || 'calorie';
+        
+        if (showCalorieBtn && showDurationBtn) {
+            if (chartType === 'calorie') {
+                showCalorieBtn.style.background = '#28a745';
+                showCalorieBtn.style.color = 'white';
+                showCalorieBtn.style.border = '1px solid #28a745';
+                showDurationBtn.style.background = 'white';
+                showDurationBtn.style.color = '#6c757d';
+                showDurationBtn.style.border = '1px solid #6c757d';
+            } else {
+                showCalorieBtn.style.background = 'white';
+                showCalorieBtn.style.color = '#6c757d';
+                showCalorieBtn.style.border = '1px solid #6c757d';
+                showDurationBtn.style.background = '#007bff';
+                showDurationBtn.style.color = 'white';
+                showDurationBtn.style.border = '1px solid #007bff';
+            }
+        }
     }
 
     function formatDate(date) {
@@ -3858,111 +3918,124 @@
         }
 
         try {
+            const chartType = window.currentChartType || 'calorie';
+            let datasets = [];
+            let scales = {};
+            
+            if (chartType === 'calorie') {
+                datasets = [{
+                    label: '卡路里消耗',
+                    data: dailyCalories,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#28a745',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }];
+                scales = {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '卡路里 (kcal)',
+                            color: '#28a745',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(40, 167, 69, 0.1)'
+                        },
+                        ticks: {
+                            color: '#28a745'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '日期',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                };
+            } else {
+                datasets = [{
+                    label: '運動時間 (分鐘)',
+                    data: dailyDuration,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#007bff',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }];
+                scales = {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '運動時間 (分鐘)',
+                            color: '#007bff',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 123, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#007bff'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '日期',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                };
+            }
+
             // 創建新圖表
             window.calorieChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: '卡路里消耗',
-                        data: dailyCalories,
-                        borderColor: '#28a745',
-                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#28a745',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        yAxisID: 'y'
-                    }, {
-                        label: '運動時間 (分鐘)',
-                        data: dailyDuration,
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.4,
-                        pointBackgroundColor: '#007bff',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        yAxisID: 'y1'
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 20
-                            }
+                            display: false
                         }
                     },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '卡路里 (kcal)',
-                                color: '#28a745',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(40, 167, 69, 0.1)'
-                            },
-                            ticks: {
-                                color: '#28a745'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '運動時間 (分鐘)',
-                                color: '#007bff',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                }
-                            },
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                            ticks: {
-                                color: '#007bff'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '日期',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                }
-                            },
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
+                    scales: scales,
                     elements: {
                         point: {
                             hoverBackgroundColor: '#28a745'
