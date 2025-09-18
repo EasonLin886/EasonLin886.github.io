@@ -766,6 +766,39 @@
                 min-width: 120px;
             }
         }
+
+        /* 體重紀錄：響應式卡片 */
+        .weight-records-scroll{ max-height: 420px; overflow-y: auto; padding-right: 2px; }
+        .weight-record-row{ display:grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; margin-bottom: 12px; }
+        .weight-record-date{ text-align: right; color: #6c757d; font-size: 12px; padding-top: 12px; }
+        .weight-record-time{ font-size:11px; }
+        .weight-record-card{ position: relative; padding: 14px; background: white; border-radius: 10px; border-left: 4px solid #28a745; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .weight-record-stats{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .weight-record-stats .stat{ text-align:center; }
+        .weight-record-stats .stat-value{ font-size:1.1em; font-weight:700; }
+        .weight-record-stats .stat-value.height{ color:#007bff; }
+        .weight-record-stats .stat-value.weight{ color:#28a745; }
+        .weight-record-stats .stat-label{ font-size:0.8em; color:#666; }
+        .bmi-chip{ display:inline-block; color:white; padding:4px 8px; border-radius:12px; font-size:0.8em; font-weight:600; margin-top:8px; }
+        .weight-record-delete{ position:absolute; right:10px; bottom:10px; background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:5px; font-size:11px; cursor:pointer; }
+
+        @media (max-width: 576px){
+            .weight-records-scroll{ max-height: 60vh; }
+            .weight-record-row{ display:flex; flex-direction: column; gap:8px; }
+            .weight-record-date{ text-align:left; padding-top:0; }
+            .weight-record-stats{ gap:8px; }
+            .weight-record-stats .stat-value{ font-size:1.05em; }
+            .weight-record-stats .stat-label{ font-size:0.78em; }
+            .bmi-chip{ font-size:0.78em; }
+        }
+
+        /* 偏好強度按鈕組（手機友善） */
+        .intensity-group{ display:flex; gap:8px; }
+        .intensity-btn{ flex:1; padding:8px 0; border:1px solid #ced4da; background:#fff; color:#495057; border-radius:6px; font-size:14px; cursor:pointer; }
+        .intensity-btn.active{ background:#0d6efd; color:#fff; border-color:#0d6efd; }
+        @media(max-width:576px){
+            .intensity-btn{ padding:10px 0; font-size:15px; }
+        }
     </style>
 </head>
 <body>
@@ -1287,11 +1320,12 @@
                         </div>
                         <div>
                             <label for="intensityPreference" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">偏好強度</label>
-                            <select id="intensityPreference" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
-                                <option value="低強度">低強度（輕鬆運動）</option>
-                                <option value="中強度" selected>中強度（適中運動）</option>
-                                <option value="高強度">高強度（激烈運動）</option>
-                            </select>
+                            <input type="hidden" id="intensityPreference" value="中強度" />
+                            <div class="intensity-group">
+                                <button type="button" class="intensity-btn" data-value="低強度">低</button>
+                                <button type="button" class="intensity-btn active" data-value="中強度">中</button>
+                                <button type="button" class="intensity-btn" data-value="高強度">高</button>
+                            </div>
                         </div>
                     </div>
                     <div style="margin-bottom:12px;">
@@ -3041,7 +3075,7 @@
             if (currentVal && monthKeys.includes(currentVal)) selectEl.value = currentVal; else selectEl.value = 'all';
         }
 
-        let html = '<div style="max-height: 420px; overflow-y: auto; padding-right: 2px;">';
+        let html = '<div class="weight-records-scroll">';
         const renderKeys = (() => {
             const selected = selectEl ? selectEl.value : 'all';
             const keys = Object.keys(groups).sort((a,b)=> new Date(b+'-01') - new Date(a+'-01'));
@@ -3060,31 +3094,32 @@
                 const bmiColor = getBMIColor(record.bmi);
                 const timeStr = (record.created_at||'').split(' ')[1]||'';
                 html += `
-                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; margin-bottom: 12px;">
-                        <div style="text-align: right; color: #6c757d; font-size: 12px; padding-top: 12px;">${record.record_date}<div style=\"font-size:11px;\">${timeStr}</div></div>
-                        <div style="position: relative;">
-                            <div style="padding: 14px; background: white; border-radius: 10px; border-left: 4px solid ${bmiColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative;">
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                                    <div style="text-align:center;">
-                                        <div style="font-size:1.1em; font-weight:700; color:#007bff;">${record.height} cm</div>
-                                        <div style="font-size:0.8em; color:#666;">身高</div>
-                                    </div>
-                                    <div style="text-align:center;">
-                                        <div style="font-size:1.1em; font-weight:700; color:#28a745;">${record.weight} kg</div>
-                                        <div style="font-size:0.8em; color:#666;">體重</div>
-                                    </div>
-                                    <div style="text-align:center;">
-                                        <div style="font-size:1.1em; font-weight:700; color:${bmiColor};">${record.bmi}</div>
-                                        <div style="font-size:0.8em; color:#666;">BMI</div>
-                                    </div>
+                <div class="weight-record-row">
+                    <div class="weight-record-date">
+                        ${record.record_date}
+                        <div class="weight-record-time">${timeStr}</div>
+                    </div>
+                    <div class="weight-record-card-wrap">
+                        <div class="weight-record-card" style="border-left-color:${bmiColor};">
+                            <div class="weight-record-stats">
+                                <div class="stat">
+                                    <div class="stat-value height">${record.height} cm</div>
+                                    <div class="stat-label">身高</div>
                                 </div>
-                                <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:8px;">
-                                    <span style="background:${bmiColor}; color:white; padding:4px 8px; border-radius:12px; font-size:0.8em; font-weight:600;">${record.bmi_category}</span>
+                                <div class="stat">
+                                    <div class="stat-value weight">${record.weight} kg</div>
+                                    <div class="stat-label">體重</div>
                                 </div>
-                                <button onclick="deleteWeightRecord(${record.id})" style="position:absolute; right:10px; bottom:10px; background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:5px; font-size:11px; cursor:pointer;">刪除</button>
+                                <div class="stat">
+                                    <div class="stat-value bmi" style="color:${bmiColor};">${record.bmi}</div>
+                                    <div class="stat-label">BMI</div>
+                                </div>
                             </div>
+                            <div class="bmi-chip" style="background:${bmiColor};">${record.bmi_category}</div>
+                            <button onclick="deleteWeightRecord(${record.id})" class="weight-record-delete">刪除</button>
                         </div>
                     </div>
+                </div>
                 `;
             });
         });
@@ -3812,6 +3847,17 @@
         // 載入已儲存的運動目標
         loadExerciseGoals();
 
+        // 偏好強度按鈕事件
+        document.querySelectorAll('.intensity-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.intensity-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const val = btn.getAttribute('data-value');
+                const hidden = document.getElementById('intensityPreference');
+                if(hidden) hidden.value = val;
+            });
+        });
+
         // 初始化運動紀錄（但不自動載入）
         window.currentExerciseWeek = 0; // 0 = 本週
         window.currentChartType = 'calorie'; // 預設顯示卡路里
@@ -4283,6 +4329,14 @@
                 const goals = JSON.parse(savedGoals);
                 document.getElementById('weeklyGoal').value = goals.weeklyGoal || 150;
                 document.getElementById('intensityPreference').value = goals.intensityPreference || '中強度';
+                // 設定偏好強度按鈕 active 狀態
+                document.querySelectorAll('.intensity-btn').forEach(b => {
+                    if (b.getAttribute('data-value') === (goals.intensityPreference || '中強度')) {
+                        b.classList.add('active');
+                    } else {
+                        b.classList.remove('active');
+                    }
+                });
                 
                 // 設定運動類型選擇
                 document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
