@@ -1330,6 +1330,13 @@
                 <div style="margin-top:15px; padding:15px; background:#e8f5e8; border-radius:6px;">
                     <h4 style="margin:0 0 12px 0; color:#333; font-size:16px;">AI 運動建議</h4>
                     <div style="margin-bottom:12px;">
+                        <label for="goalType" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">目標</label>
+                        <select id="goalType" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px; margin-bottom:10px;">
+                            <option value="持平">持平</option>
+                            <option value="減重">減重</option>
+                            <option value="增重">增重</option>
+                        </select>
+
                         <label for="adviceType" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">建議類型</label>
                         <select id="adviceType" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
                             <option value="weekly_plan">本週運動計劃</option>
@@ -3750,21 +3757,53 @@
             });
         }
 
-        // 生成建議按鈕
+        // 生成建議按鈕（呼叫後端）
         const generateAdviceBtn = document.getElementById('generateAdvice');
         if (generateAdviceBtn) {
-            generateAdviceBtn.addEventListener('click', function() {
+            generateAdviceBtn.addEventListener('click', async function() {
                 const adviceType = document.getElementById('adviceType').value;
+                const goalType = document.getElementById('goalType').value;
                 const adviceDisplay = document.getElementById('adviceDisplay');
-                
-                // 顯示載入中
+
                 adviceDisplay.innerHTML = '<div style="text-align:center; color:#007bff; font-size:14px;">正在生成建議...</div>';
-                
-                // 模擬生成建議（暫時顯示範例內容）
-                setTimeout(() => {
-                    const sampleAdvice = generateSampleAdvice(adviceType);
-                    adviceDisplay.innerHTML = sampleAdvice;
-                }, 1500);
+
+                try {
+                    // 準備近一週飲食熱量（若有食物資料來源可整合；此處以空陣列為預設）
+                    const weekFoodCalories = await getLast7DaysFoodCalories();
+
+                    // 取得最近一次身體資料（從已載入的體重紀錄中取最新）
+                    const latestBody = getLatestBodyProfile();
+
+                    // 準備近一週運動統計（從已載入的運動紀錄周資料中整理或後端重新取得）
+                    const weekExercise = await getLast7DaysExercise();
+
+                    const userId = window.globalUserId || 'FALLBACK_USER_ID';
+
+                    const payload = {
+                        userId,
+                        goalType,
+                        adviceType,
+                        weekFoodCalories,
+                        latestBody,
+                        weekExercise
+                    };
+
+                    const res = await fetch('/exercise_advice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+
+                    if (data && data.success) {
+                        const html = renderExerciseAdviceHTML(data, adviceType);
+                        adviceDisplay.innerHTML = html;
+                    } else {
+                        adviceDisplay.innerHTML = `<div style="color:#dc3545;">產生建議失敗：${(data && data.message) ? data.message : '未知錯誤'}</div>`;
+                    }
+                } catch (err) {
+                    adviceDisplay.innerHTML = `<div style="color:#dc3545;">產生建議失敗：${err}</div>`;
+                }
             });
         }
 
@@ -4251,6 +4290,60 @@
                 console.error('載入運動目標失敗:', e);
             }
         }
+    }
+
+    // 依照選擇的 adviceType 顯示對應段落
+    function renderExerciseAdviceHTML(apiResult, adviceType){
+        const goalAdj = (apiResult && apiResult.goal_adjustment) ? apiResult.goal_adjustment : '';
+        const weeklyPlan = (apiResult && apiResult.weekly_plan) ? apiResult.weekly_plan : '';
+        if (adviceType === 'goal_adjustment') {
+            return `<div style="white-space:pre-wrap; line-height:1.6;">${goalAdj || '暫無建議'}</div>`;
+        } else {
+            return `<div style="white-space:pre-wrap; line-height:1.6;">${weeklyPlan || '暫無計劃'}</div>`;
+        }
+    }
+
+    // 蒐集近7天飲食熱量（若前端已有食物記錄狀態可替換此實作）
+    async function getLast7DaysFoodCalories(){
+        try{
+            // TODO: 若前端已有食物日誌API可在此呼叫，暫以空資料回傳
+            return [];
+        }catch(e){ return []; }
+    }
+
+    // 從全域體重紀錄抓最新身體資訊
+    function getLatestBodyProfile(){
+        const records = (window.globalWeightRecords || []).slice().sort((a,b)=>new Date(b.record_date)-new Date(a.record_date));
+        if(records.length===0){ return {}; }
+        const r = records[0];
+        return {
+            age: r.age,
+            height_cm: r.height,
+            weight_kg: r.weight,
+            bmi: r.bmi
+        };
+    }
+
+    // 蒐集近7天運動紀錄（若尚未載入，嘗試向後端索取）
+    async function getLast7DaysExercise(){
+        try{
+            // 若當前週資料已在前端，可由 window.currentWeekGroups 整理
+            if(window.currentWeekGroups && window.currentWeekStart){
+                const list = [];
+                for(let i=0;i<7;i++){
+                    const day = new Date(window.currentWeekStart);
+                    day.setDate(day.getDate()+i);
+                    const key = day.toISOString().slice(0,10);
+                    const items = (window.currentWeekGroups[key]||[]);
+                    const totalMin = items.reduce((s,x)=>s + (x.duration_min||x.duration||0), 0);
+                    const totalCal = items.reduce((s,x)=>s + (x.calories||0), 0);
+                    list.push({date:key, duration_min: totalMin, calories: totalCal});
+                }
+                return list;
+            }
+            // 否則先回傳空，或可在此呼叫後端取得最近7天運動紀錄
+            return [];
+        }catch(e){ return []; }
     }
 
     function generateSampleAdvice(adviceType) {
