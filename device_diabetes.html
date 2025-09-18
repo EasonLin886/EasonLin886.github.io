@@ -3788,21 +3788,23 @@
                         weekExercise
                     };
 
-                    const res = await fetch('/exercise_advice', {
+                    const res = await fetch('https://19224b22c5ce.ngrok-free.app/exercise_advice', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    const data = await res.json();
+                    const text = await res.text();
+                    let data = null;
+                    try { data = JSON.parse(text); } catch(e) { data = null; }
 
                     if (data && data.success) {
                         const html = renderExerciseAdviceHTML(data, adviceType);
                         adviceDisplay.innerHTML = html;
                     } else {
-                        adviceDisplay.innerHTML = `<div style="color:#dc3545;">產生建議失敗：${(data && data.message) ? data.message : '未知錯誤'}</div>`;
+                        adviceDisplay.innerHTML = `<div style=\"color:#dc3545;\">產生建議失敗：${(data && data.message) ? data.message : (res.ok ? '未知錯誤' : '服務未回應或格式錯誤')}</div>`;
                     }
                 } catch (err) {
-                    adviceDisplay.innerHTML = `<div style="color:#dc3545;">產生建議失敗：${err}</div>`;
+                    adviceDisplay.innerHTML = `<div style=\"color:#dc3545;\">產生建議失敗：${err}</div>`;
                 }
             });
         }
