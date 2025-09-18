@@ -1250,7 +1250,9 @@
             <!-- 當週卡路里消耗線圖 -->
             <div id="weeklyCalorieChart" style="margin-top:20px; padding:15px; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 <h4 style="margin:0 0 12px 0; color:#333;">當週卡路里消耗趨勢</h4>
-                <canvas id="calorieChart" width="400" height="200"></canvas>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="calorieChart"></canvas>
+                </div>
             </div>
             </div>
         </div>
@@ -3557,7 +3559,10 @@
                 toggleExerciseHistoryBtn.textContent = hidden ? '隱藏' : '顯示';
                 // 當顯示時才載入運動紀錄
                 if (hidden) {
-                    loadExerciseRecords();
+                    // 延遲一下確保DOM元素已顯示
+                    setTimeout(() => {
+                        loadExerciseRecords();
+                    }, 100);
                 }
             });
         }
@@ -3793,7 +3798,16 @@
 
     function renderWeeklyCalorieChart(weekGroups, weekStart) {
         const canvas = document.getElementById('calorieChart');
-        if (!canvas) return;
+        if (!canvas) {
+            console.log('找不到 calorieChart canvas 元素');
+            return;
+        }
+
+        // 檢查 Chart.js 是否已載入
+        if (typeof Chart === 'undefined') {
+            console.log('Chart.js 未載入');
+            return;
+        }
 
         const ctx = canvas.getContext('2d');
         const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
@@ -3818,75 +3832,82 @@
             labels.push(`${day}\n${formatDate(dayDate)}`);
         });
 
+        console.log('圖表數據:', { labels, dailyCalories });
+
         // 銷毀舊圖表
         if (window.calorieChartInstance) {
             window.calorieChartInstance.destroy();
         }
 
-        // 創建新圖表
-        window.calorieChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: '卡路里消耗',
-                    data: dailyCalories,
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#28a745',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+        try {
+            // 創建新圖表
+            window.calorieChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '卡路里消耗',
+                        data: dailyCalories,
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#28a745',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: '卡路里 (kcal)',
-                            font: {
-                                size: 12,
-                                weight: 'bold'
-                            }
-                        },
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: '日期',
-                            font: {
-                                size: 12,
-                                weight: 'bold'
-                            }
-                        },
-                        grid: {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
                             display: false
                         }
-                    }
-                },
-                elements: {
-                    point: {
-                        hoverBackgroundColor: '#28a745'
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '卡路里 (kcal)',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '日期',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            hoverBackgroundColor: '#28a745'
+                        }
                     }
                 }
-            }
-        });
+            });
+            console.log('圖表創建成功');
+        } catch (error) {
+            console.error('圖表創建失敗:', error);
+        }
     }
 
     async function deleteExercise(id){
