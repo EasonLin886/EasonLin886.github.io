@@ -1246,6 +1246,12 @@
                 <button class="dayBtn" data-day="6" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週日</button>
             </div>
             <div id="exerciseRecords" style="margin-top:10px;"></div>
+            
+            <!-- 當週卡路里消耗線圖 -->
+            <div id="weeklyCalorieChart" style="margin-top:20px; padding:15px; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <h4 style="margin:0 0 12px 0; color:#333;">當週卡路里消耗趨勢</h4>
+                <canvas id="calorieChart" width="400" height="200"></canvas>
+            </div>
             </div>
         </div>
     </div>
@@ -3657,6 +3663,7 @@
             
             renderExerciseListByWeek(weekGroups, weekStart);
             updateDayButtons();
+            renderWeeklyCalorieChart(weekGroups, weekStart);
         } catch (e) { 
             console.error(e); 
             document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">載入失敗</div>';
@@ -3759,7 +3766,7 @@
                     <div style="flex:1;">
                         <div style="font-weight:600; color:#0d6efd; font-size:14px;">${r.ex_type}（${r.intensity}）</div>
                         <div style="font-size:12px; color:#666;">${timeStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
-                        <div style="font-size:11px; color:#28a745; font-weight:500;">🔥 ${calories} 卡路里</div>
+                        <div style="font-size:11px; color:#28a745; font-weight:500;">${calories} 卡路里</div>
                     </div>
                     <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:3px 6px; font-size:11px; cursor:pointer;">刪除</button>
                 </div>`;
@@ -3770,7 +3777,7 @@
                 html = `
                 <div style="background: #e8f5e8; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; text-align: center;">
                     <div style="font-weight: bold; color: #28a745; font-size: 14px;">
-                        📊 當日總消耗：${totalCalories} 卡路里
+                        當日總消耗：${totalCalories} 卡路里
                     </div>
                 </div>
                 ` + html;
@@ -3782,6 +3789,104 @@
         </div>`;
         
         box.innerHTML = html;
+    }
+
+    function renderWeeklyCalorieChart(weekGroups, weekStart) {
+        const canvas = document.getElementById('calorieChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+        
+        // 計算每天總卡路里
+        const dailyCalories = [];
+        const labels = [];
+        
+        weekDays.forEach((day, index) => {
+            const dayDate = new Date(weekStart);
+            dayDate.setDate(weekStart.getDate() + index);
+            const dayRecords = weekGroups[day] || [];
+            
+            let dayTotal = 0;
+            dayRecords.forEach(r => {
+                const weight = getLatestUserWeight();
+                const calories = calculateCalories(r.ex_type, r.intensity, r.duration_min, weight);
+                dayTotal += calories;
+            });
+            
+            dailyCalories.push(dayTotal);
+            labels.push(`${day}\n${formatDate(dayDate)}`);
+        });
+
+        // 銷毀舊圖表
+        if (window.calorieChartInstance) {
+            window.calorieChartInstance.destroy();
+        }
+
+        // 創建新圖表
+        window.calorieChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '卡路里消耗',
+                    data: dailyCalories,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#28a745',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '卡路里 (kcal)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '日期',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: '#28a745'
+                    }
+                }
+            }
+        });
     }
 
     async function deleteExercise(id){
