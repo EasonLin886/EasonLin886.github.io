@@ -1121,9 +1121,9 @@
         <div class="weight-records-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
             <div style="display:flex; align-items:center; justify-content: space-between;">
                 <h3 style="margin:0;">體重記錄歷史</h3>
-                <button id="toggleWeightHistoryBtn" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">隱藏</button>
+                <button id="toggleWeightHistoryBtn" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">顯示</button>
             </div>
-            <div id="weightHistoryContent" style="margin-top:12px;">
+            <div id="weightHistoryContent" style="margin-top:12px; display: none;">
             
             <!-- 趨勢圖區域 -->
             <div id="weightTrendChartContainer" style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -1165,9 +1165,11 @@
         <div class="exercise-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff; margin-top:20px;">
             <div style="display:flex; align-items:center; justify-content: space-between;">
                 <h3 style="margin:0;">新增運動紀錄</h3>
+                <button id="toggleExerciseForm" style="background-color: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">顯示</button>
             </div>
 
             <!-- 運動表單：種類/強度/時間（分鐘）/日期時間 -->
+            <div id="exerciseFormContent" style="display: none;">
             <form id="exerciseForm" style="margin-top:12px;">
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom:10px;">
                     <div>
@@ -1213,18 +1215,22 @@
                 </div>
                 <button type="submit" style="background-color:#198754; color:white; padding:10px 16px; border:none; border-radius:6px; cursor:pointer;">新增運動</button>
             </form>
+            </div>
         </div>
 
         <!-- 運動紀錄歷史（分月） -->
         <div class="exercise-history" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff; margin-top:14px;">
             <div style="display:flex; align-items:center; justify-content: space-between;">
                 <h3 style="margin:0;">運動紀錄歷史</h3>
+                <button id="toggleExerciseHistory" style="background-color: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">顯示</button>
             </div>
+            <div id="exerciseHistoryContent" style="display: none;">
             <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
                 <div style="font-size:13px; color:#555;">運動月份</div>
                 <select id="exMonthSelect" style="padding:6px 10px; border:1px solid #ced4da; border-radius:6px; background:#fff; color:#333; font-size:13px; cursor:pointer;"></select>
             </div>
             <div id="exerciseRecords" style="margin-top:10px;"></div>
+            </div>
         </div>
     </div>
 
@@ -3496,6 +3502,28 @@
                     const v = parseInt(btn.getAttribute('data-min'));
                     if (!isNaN(v) && durInput) durInput.value = v;
                 });
+            });
+        }
+
+        // 運動表單隱藏/顯示
+        const toggleExerciseFormBtn = document.getElementById('toggleExerciseForm');
+        const exerciseFormContent = document.getElementById('exerciseFormContent');
+        if (toggleExerciseFormBtn && exerciseFormContent) {
+            toggleExerciseFormBtn.addEventListener('click', function() {
+                const hidden = exerciseFormContent.style.display === 'none';
+                exerciseFormContent.style.display = hidden ? 'block' : 'none';
+                toggleExerciseFormBtn.textContent = hidden ? '隱藏' : '顯示';
+            });
+        }
+
+        // 運動歷史隱藏/顯示
+        const toggleExerciseHistoryBtn = document.getElementById('toggleExerciseHistory');
+        const exerciseHistoryContent = document.getElementById('exerciseHistoryContent');
+        if (toggleExerciseHistoryBtn && exerciseHistoryContent) {
+            toggleExerciseHistoryBtn.addEventListener('click', function() {
+                const hidden = exerciseHistoryContent.style.display === 'none';
+                exerciseHistoryContent.style.display = hidden ? 'block' : 'none';
+                toggleExerciseHistoryBtn.textContent = hidden ? '隱藏' : '顯示';
             });
         }
 
