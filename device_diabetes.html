@@ -1213,6 +1213,10 @@
                     <label for="exNote">備註（可選）</label>
                     <input type="text" id="exNote" name="exNote" placeholder="例如：路跑、心率、體感..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" />
                 </div>
+                <div id="calorieEstimate" style="margin-bottom:10px; padding:8px; background:#f8f9fa; border-radius:4px; display:none;">
+                    <div style="font-size:12px; color:#666;">預估卡路里消耗：</div>
+                    <div id="calorieValue" style="font-weight:bold; color:#28a745; font-size:14px;"></div>
+                </div>
                 <button type="submit" style="background-color:#198754; color:white; padding:10px 16px; border:none; border-radius:6px; cursor:pointer;">新增運動</button>
             </form>
             </div>
@@ -3513,8 +3517,17 @@
                 btn.addEventListener('click', ()=>{
                     const v = parseInt(btn.getAttribute('data-min'));
                     if (!isNaN(v) && durInput) durInput.value = v;
+                    updateCalorieEstimate();
                 });
             });
+
+            // 卡路里預估功能
+            const exTypeSelect = document.getElementById('exType');
+            const exIntensitySelect = document.getElementById('exIntensity');
+            
+            if (exTypeSelect) exTypeSelect.addEventListener('change', updateCalorieEstimate);
+            if (exIntensitySelect) exIntensitySelect.addEventListener('change', updateCalorieEstimate);
+            if (durInput) durInput.addEventListener('input', updateCalorieEstimate);
         }
 
         // 運動表單隱藏/顯示
@@ -3568,6 +3581,16 @@
                 loadExerciseRecords();
             });
         });
+
+        // 運動種類與MET值對應表
+        window.exerciseMETs = {
+            '步行': { '低強度': 3.5, '中強度': 5.5, '高強度': 7.0 },
+            '慢跑': { '低強度': 8.2, '中強度': 10.0, '高強度': 12.7 },
+            '騎自行車': { '低強度': 4.0, '中強度': 8.4, '高強度': 12.6 },
+            '游泳': { '低強度': 6.3, '中強度': 8.0, '高強度': 10.0 },
+            '重量訓練': { '低強度': 3.0, '中強度': 5.0, '高強度': 8.0 },
+            '瑜珈/伸展': { '低強度': 3.0, '中強度': 4.2, '高強度': 5.0 }
+        };
 
         // 初始化運動紀錄（但不自動載入）
         window.currentExerciseWeek = 0; // 0 = 本週
@@ -3659,6 +3682,44 @@
         return `${date.getMonth() + 1}/${date.getDate()}`;
     }
 
+    function calculateCalories(exType, intensity, duration, weight) {
+        // 卡路里計算公式：METs × 體重(kg) × 時間(小時)
+        const mets = window.exerciseMETs[exType]?.[intensity];
+        if (!mets || !weight) return 0;
+        
+        const hours = duration / 60; // 分鐘轉小時
+        return Math.round(mets * weight * hours);
+    }
+
+    function getLatestUserWeight() {
+        // 從體重記錄中取得最新體重，如果沒有則使用預設值60kg
+        if (window.globalWeightRecords && window.globalWeightRecords.length > 0) {
+            const latestRecord = window.globalWeightRecords[0]; // 已按日期排序，第一個是最新的
+            return latestRecord.weight || 60;
+        }
+        return 60; // 預設體重
+    }
+
+    function updateCalorieEstimate() {
+        const exType = document.getElementById('exType')?.value;
+        const intensity = document.getElementById('exIntensity')?.value;
+        const duration = parseInt(document.getElementById('exDuration')?.value || 0);
+        const calorieEstimate = document.getElementById('calorieEstimate');
+        const calorieValue = document.getElementById('calorieValue');
+        
+        if (exType && intensity && duration > 0) {
+            const weight = getLatestUserWeight();
+            const calories = calculateCalories(exType, intensity, duration, weight);
+            
+            if (calorieEstimate && calorieValue) {
+                calorieValue.textContent = `${calories} 卡路里`;
+                calorieEstimate.style.display = 'block';
+            }
+        } else if (calorieEstimate) {
+            calorieEstimate.style.display = 'none';
+        }
+    }
+
     function renderExerciseListByWeek(weekGroups, weekStart) {
         const box = document.getElementById('exerciseRecords');
         const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
@@ -3682,18 +3743,38 @@
             html += '<div style="color: #6c757d; font-size: 12px; text-align: center; padding: 8px;">無運動紀錄</div>';
         } else {
             dayRecords.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            let totalCalories = 0;
+            
             dayRecords.forEach(r => {
                 const d = new Date(r.start_time);
                 const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                
+                // 計算卡路里（從體重記錄中取得最新體重）
+                const userWeight = getLatestUserWeight();
+                const calories = calculateCalories(r.ex_type, r.intensity, r.duration_min, userWeight);
+                totalCalories += calories;
+                
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #e9ecef; border-radius:6px; margin-bottom:6px; background:white;">
-                    <div>
+                    <div style="flex:1;">
                         <div style="font-weight:600; color:#0d6efd; font-size:14px;">${r.ex_type}（${r.intensity}）</div>
                         <div style="font-size:12px; color:#666;">${timeStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
+                        <div style="font-size:11px; color:#28a745; font-weight:500;">🔥 ${calories} 卡路里</div>
                     </div>
                     <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:3px 6px; font-size:11px; cursor:pointer;">刪除</button>
                 </div>`;
             });
+            
+            // 顯示當日總卡路里
+            if (totalCalories > 0) {
+                html = `
+                <div style="background: #e8f5e8; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; text-align: center;">
+                    <div style="font-weight: bold; color: #28a745; font-size: 14px;">
+                        📊 當日總消耗：${totalCalories} 卡路里
+                    </div>
+                </div>
+                ` + html;
+            }
         }
         
         html += `
