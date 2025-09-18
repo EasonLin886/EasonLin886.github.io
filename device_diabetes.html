@@ -1225,9 +1225,11 @@
                 <button id="toggleExerciseHistory" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">顯示</button>
             </div>
             <div id="exerciseHistoryContent" style="display: none;">
-            <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
-                <div style="font-size:13px; color:#555;">運動月份</div>
-                <select id="exMonthSelect" style="padding:6px 10px; border:1px solid #ced4da; border-radius:6px; background:#fff; color:#333; font-size:13px; cursor:pointer;"></select>
+            <div style="margin-top:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="font-size:13px; color:#555;">週次選擇</div>
+                <button id="prevWeekBtn" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">← 前一週</button>
+                <div id="currentWeekDisplay" style="font-size:13px; color:#333; font-weight:bold; min-width:120px; text-align:center;"></div>
+                <button id="nextWeekBtn" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">下一週 →</button>
             </div>
             <div id="exerciseRecords" style="margin-top:10px;"></div>
             </div>
@@ -3524,11 +3526,31 @@
                 const hidden = exerciseHistoryContent.style.display === 'none';
                 exerciseHistoryContent.style.display = hidden ? 'block' : 'none';
                 toggleExerciseHistoryBtn.textContent = hidden ? '隱藏' : '顯示';
+                // 當顯示時才載入運動紀錄
+                if (hidden) {
+                    loadExerciseRecords();
+                }
             });
         }
 
-        // 初始化運動紀錄
-        loadExerciseRecords();
+        // 週次導航按鈕
+        const prevWeekBtn = document.getElementById('prevWeekBtn');
+        const nextWeekBtn = document.getElementById('nextWeekBtn');
+        if (prevWeekBtn) {
+            prevWeekBtn.addEventListener('click', function() {
+                window.currentExerciseWeek = (window.currentExerciseWeek || 0) - 1;
+                loadExerciseRecords();
+            });
+        }
+        if (nextWeekBtn) {
+            nextWeekBtn.addEventListener('click', function() {
+                window.currentExerciseWeek = (window.currentExerciseWeek || 0) + 1;
+                loadExerciseRecords();
+            });
+        }
+
+        // 初始化運動紀錄（但不自動載入）
+        window.currentExerciseWeek = 0; // 0 = 本週
     });
 
     async function loadExerciseRecords(){
@@ -3538,54 +3560,114 @@
                 method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'get', userId})
             });
             const ret = await res.json();
-            if (!ret.success) { document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">查無運動紀錄</div>'; return; }
+            if (!ret.success) { 
+                document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">查無運動紀錄</div>'; 
+                return; 
+            }
             const rows = ret.data || [];
-            // 建立月份清單
-            const group = {};
-            rows.forEach(r=>{
-                const d = new Date(r.start_time);
-                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                if(!group[key]) group[key]=[]; group[key].push(r);
+            
+            // 計算目標週的日期範圍
+            const weekOffset = window.currentExerciseWeek || 0;
+            const today = new Date();
+            const currentDay = today.getDay(); // 0=週日, 1=週一
+            const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // 調整到週一
+            const targetMonday = new Date(today);
+            targetMonday.setDate(today.getDate() + mondayOffset + (weekOffset * 7));
+            
+            const weekStart = new Date(targetMonday);
+            const weekEnd = new Date(targetMonday);
+            weekEnd.setDate(targetMonday.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+            
+            // 更新週次顯示
+            const weekDisplay = document.getElementById('currentWeekDisplay');
+            if (weekDisplay) {
+                const weekStr = weekOffset === 0 ? '本週' : 
+                               weekOffset === -1 ? '上週' : 
+                               weekOffset === 1 ? '下週' : 
+                               `${weekOffset > 0 ? '+' : ''}${weekOffset}週`;
+                weekDisplay.textContent = `${weekStr} (${formatDate(weekStart)} - ${formatDate(weekEnd)})`;
+            }
+            
+            // 篩選該週的記錄
+            const weekRecords = rows.filter(r => {
+                const recordDate = new Date(r.start_time);
+                return recordDate >= weekStart && recordDate <= weekEnd;
             });
-            const select = document.getElementById('exMonthSelect');
-            if (select) {
-                const keys = Object.keys(group).sort((a,b)=> new Date(b+'-01')-new Date(a+'-01'));
-                const cur = select.value;
-                select.innerHTML = '<option value="all">全部</option>' + keys.map(k=>`<option value="${k}">${k.replace('-', '年 ')}月</option>`).join('');
-                if (cur && keys.includes(cur)) select.value = cur;
-            }
-            renderExerciseList(rows);
-            // 綁定月份切換
-            const select2 = document.getElementById('exMonthSelect');
-            if (select2 && !select2._binded) {
-                select2.addEventListener('change', ()=>{
-                    const v = select2.value;
-                    const filtered = v==='all'? rows: rows.filter(r=>{
-                        const d = new Date(r.start_time); const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; return k===v;});
-                    renderExerciseList(filtered);
+            
+            // 按週一到週日分組
+            const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+            const weekGroups = {};
+            weekDays.forEach((day, index) => {
+                const dayDate = new Date(weekStart);
+                dayDate.setDate(weekStart.getDate() + index);
+                weekGroups[day] = weekRecords.filter(r => {
+                    const recordDate = new Date(r.start_time);
+                    return recordDate.getDate() === dayDate.getDate() && 
+                           recordDate.getMonth() === dayDate.getMonth();
                 });
-                select2._binded = true;
-            }
-        } catch (e) { console.error(e); }
+            });
+            
+            renderExerciseListByWeek(weekGroups, weekStart);
+        } catch (e) { 
+            console.error(e); 
+            document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">載入失敗</div>';
+        }
     }
 
-    function renderExerciseList(rows){
+    function formatDate(date) {
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function renderExerciseListByWeek(weekGroups, weekStart) {
         const box = document.getElementById('exerciseRecords');
-        if (!rows || rows.length===0){ box.innerHTML = '<div style="color:#888;">查無運動紀錄</div>'; return; }
-        let html='';
-        rows.sort((a,b)=> new Date(b.start_time)-new Date(a.start_time));
-        rows.forEach(r=>{
-            const d = new Date(r.start_time);
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+        
+        let html = '';
+        let hasRecords = false;
+        
+        weekDays.forEach((day, index) => {
+            const dayDate = new Date(weekStart);
+            dayDate.setDate(weekStart.getDate() + index);
+            const dayRecords = weekGroups[day] || [];
+            
+            if (dayRecords.length > 0) hasRecords = true;
+            
             html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid #e9ecef; border-radius:8px; margin-top:8px;">
-                <div>
-                    <div style="font-weight:700; color:#0d6efd;">${r.ex_type}（${r.intensity}）</div>
-                    <div style="font-size:12px; color:#666;">${dateStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
+            <div style="margin-bottom: 16px; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+                <div style="background: #f8f9fa; padding: 8px 12px; font-weight: bold; color: #495057; border-bottom: 1px solid #e9ecef;">
+                    ${day} (${formatDate(dayDate)})
                 </div>
-                <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer;">刪除</button>
+                <div style="padding: 8px;">
+            `;
+            
+            if (dayRecords.length === 0) {
+                html += '<div style="color: #6c757d; font-size: 12px; text-align: center; padding: 8px;">無運動紀錄</div>';
+            } else {
+                dayRecords.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+                dayRecords.forEach(r => {
+                    const d = new Date(r.start_time);
+                    const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                    html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #e9ecef; border-radius:6px; margin-bottom:6px; background:white;">
+                        <div>
+                            <div style="font-weight:600; color:#0d6efd; font-size:14px;">${r.ex_type}（${r.intensity}）</div>
+                            <div style="font-size:12px; color:#666;">${timeStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
+                        </div>
+                        <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:3px 6px; font-size:11px; cursor:pointer;">刪除</button>
+                    </div>`;
+                });
+            }
+            
+            html += `
+                </div>
             </div>`;
         });
+        
+        if (!hasRecords) {
+            html = '<div style="color:#888; text-align:center; padding:20px;">本週無運動紀錄</div>';
+        }
+        
         box.innerHTML = html;
     }
 
