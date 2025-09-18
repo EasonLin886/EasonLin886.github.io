@@ -1269,6 +1269,87 @@
             </div>
             </div>
         </div>
+
+        <!-- 個人運動建議區域 -->
+        <div class="exercise-advice-container" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff; margin-top:14px;">
+            <div style="display:flex; align-items:center; justify-content: space-between;">
+                <h3 style="margin:0;">個人運動建議</h3>
+                <button id="toggleExerciseAdvice" type="button" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px;">顯示</button>
+            </div>
+            <div id="exerciseAdviceContent" style="display: none;">
+                <!-- 運動目標設定 -->
+                <div style="margin-top:12px; padding:15px; background:#f8f9fa; border-radius:6px;">
+                    <h4 style="margin:0 0 12px 0; color:#333; font-size:16px;">運動目標設定</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom:12px;">
+                        <div>
+                            <label for="weeklyGoal" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">每週運動目標（分鐘）</label>
+                            <input type="number" id="weeklyGoal" min="0" max="1000" step="30" value="150" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;" />
+                        </div>
+                        <div>
+                            <label for="intensityPreference" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">偏好強度</label>
+                            <select id="intensityPreference" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                                <option value="低強度">低強度（輕鬆運動）</option>
+                                <option value="中強度" selected>中強度（適中運動）</option>
+                                <option value="高強度">高強度（激烈運動）</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label for="exerciseTypes" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">偏好運動類型（可多選）</label>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="步行" style="margin-right:6px;" checked />
+                                步行
+                            </label>
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="慢跑" style="margin-right:6px;" />
+                                慢跑
+                            </label>
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="騎自行車" style="margin-right:6px;" />
+                                騎自行車
+                            </label>
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="游泳" style="margin-right:6px;" />
+                                游泳
+                            </label>
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="重量訓練" style="margin-right:6px;" />
+                                重量訓練
+                            </label>
+                            <label style="display:flex; align-items:center; font-size:12px; cursor:pointer;">
+                                <input type="checkbox" value="瑜珈/伸展" style="margin-right:6px;" />
+                                瑜珈/伸展
+                            </label>
+                        </div>
+                    </div>
+                    <button id="saveExerciseGoals" style="background-color:#007bff; color:white; padding:8px 16px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">儲存目標</button>
+                </div>
+
+                <!-- 運動建議生成 -->
+                <div style="margin-top:15px; padding:15px; background:#e8f5e8; border-radius:6px;">
+                    <h4 style="margin:0 0 12px 0; color:#333; font-size:16px;">AI 運動建議</h4>
+                    <div style="margin-bottom:12px;">
+                        <label for="adviceType" style="display:block; margin-bottom:4px; font-size:13px; color:#555;">建議類型</label>
+                        <select id="adviceType" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                            <option value="weekly_plan">本週運動計劃</option>
+                            <option value="progress_analysis">運動進度分析</option>
+                            <option value="goal_adjustment">目標調整建議</option>
+                            <option value="motivation">運動激勵</option>
+                            <option value="injury_prevention">運動傷害預防</option>
+                        </select>
+                    </div>
+                    <button id="generateAdvice" style="background-color:#28a745; color:white; padding:8px 16px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">生成建議</button>
+                </div>
+
+                <!-- 建議顯示區域 -->
+                <div id="adviceDisplay" style="margin-top:15px; padding:15px; background:white; border:1px solid #e9ecef; border-radius:6px; min-height:100px;">
+                    <div style="text-align:center; color:#6c757d; font-size:14px;">
+                        點擊「生成建議」來獲取個人化運動建議
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="section-feedback" class="content-section" style="display: none;">
@@ -3640,6 +3721,59 @@
             });
         }
 
+        // 運動建議區域隱藏/顯示
+        const toggleExerciseAdviceBtn = document.getElementById('toggleExerciseAdvice');
+        const exerciseAdviceContent = document.getElementById('exerciseAdviceContent');
+        if (toggleExerciseAdviceBtn && exerciseAdviceContent) {
+            toggleExerciseAdviceBtn.addEventListener('click', function() {
+                const hidden = exerciseAdviceContent.style.display === 'none';
+                exerciseAdviceContent.style.display = hidden ? 'block' : 'none';
+                toggleExerciseAdviceBtn.textContent = hidden ? '隱藏' : '顯示';
+            });
+        }
+
+        // 儲存運動目標按鈕
+        const saveExerciseGoalsBtn = document.getElementById('saveExerciseGoals');
+        if (saveExerciseGoalsBtn) {
+            saveExerciseGoalsBtn.addEventListener('click', function() {
+                const weeklyGoal = document.getElementById('weeklyGoal').value;
+                const intensityPreference = document.getElementById('intensityPreference').value;
+                const exerciseTypes = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                
+                // 儲存到本地存儲
+                const goals = {
+                    weeklyGoal: parseInt(weeklyGoal),
+                    intensityPreference: intensityPreference,
+                    exerciseTypes: exerciseTypes,
+                    savedAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem('exerciseGoals', JSON.stringify(goals));
+                alert('運動目標已儲存！');
+            });
+        }
+
+        // 生成建議按鈕
+        const generateAdviceBtn = document.getElementById('generateAdvice');
+        if (generateAdviceBtn) {
+            generateAdviceBtn.addEventListener('click', function() {
+                const adviceType = document.getElementById('adviceType').value;
+                const adviceDisplay = document.getElementById('adviceDisplay');
+                
+                // 顯示載入中
+                adviceDisplay.innerHTML = '<div style="text-align:center; color:#007bff; font-size:14px;">正在生成建議...</div>';
+                
+                // 模擬生成建議（暫時顯示範例內容）
+                setTimeout(() => {
+                    const sampleAdvice = generateSampleAdvice(adviceType);
+                    adviceDisplay.innerHTML = sampleAdvice;
+                }, 1500);
+            });
+        }
+
+        // 載入已儲存的運動目標
+        loadExerciseGoals();
+
         // 初始化運動紀錄（但不自動載入）
         window.currentExerciseWeek = 0; // 0 = 本週
         window.currentChartType = 'calorie'; // 預設顯示卡路里
@@ -4102,6 +4236,115 @@
         }
 
         summaryContent.innerHTML = summaryText;
+    }
+
+    function loadExerciseGoals() {
+        const savedGoals = localStorage.getItem('exerciseGoals');
+        if (savedGoals) {
+            try {
+                const goals = JSON.parse(savedGoals);
+                document.getElementById('weeklyGoal').value = goals.weeklyGoal || 150;
+                document.getElementById('intensityPreference').value = goals.intensityPreference || '中強度';
+                
+                // 設定運動類型選擇
+                document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = goals.exerciseTypes && goals.exerciseTypes.includes(cb.value);
+                });
+            } catch (e) {
+                console.error('載入運動目標失敗:', e);
+            }
+        }
+    }
+
+    function generateSampleAdvice(adviceType) {
+        const adviceTemplates = {
+            'weekly_plan': `
+                <div style="color: #333;">
+                    <h5 style="color: #28a745; margin-bottom: 12px;">📅 本週運動計劃</h5>
+                    <div style="line-height: 1.6;">
+                        <p><strong>週一：</strong>步行 30 分鐘（低強度）</p>
+                        <p><strong>週三：</strong>慢跑 25 分鐘（中強度）</p>
+                        <p><strong>週五：</strong>騎自行車 35 分鐘（中強度）</p>
+                        <p><strong>週日：</strong>瑜珈 20 分鐘（低強度）</p>
+                        <p style="margin-top: 12px; color: #666; font-size: 13px;">
+                            💡 建議：根據您的目標，本週總運動時間為 110 分鐘，建議增加 40 分鐘以達到目標。
+                        </p>
+                    </div>
+                </div>
+            `,
+            'progress_analysis': `
+                <div style="color: #333;">
+                    <h5 style="color: #007bff; margin-bottom: 12px;">📊 運動進度分析</h5>
+                    <div style="line-height: 1.6;">
+                        <p><strong>本週完成度：</strong>73% (110/150 分鐘)</p>
+                        <p><strong>平均每日運動：</strong>15.7 分鐘</p>
+                        <p><strong>最活躍日：</strong>週三（25 分鐘）</p>
+                        <p><strong>需要改善：</strong>週二、週四、週六無運動記錄</p>
+                        <p style="margin-top: 12px; color: #666; font-size: 13px;">
+                            💡 建議：嘗試在休息日加入輕度運動，如散步或伸展。
+                        </p>
+                    </div>
+                </div>
+            `,
+            'goal_adjustment': `
+                <div style="color: #333;">
+                    <h5 style="color: #fd7e14; margin-bottom: 12px;">🎯 目標調整建議</h5>
+                    <div style="line-height: 1.6;">
+                        <p><strong>當前目標：</strong>每週 150 分鐘</p>
+                        <p><strong>實際完成：</strong>110 分鐘</p>
+                        <p><strong>建議調整：</strong>暫時降低至 120 分鐘，逐步提升</p>
+                        <p><strong>新計劃：</strong></p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li>每週 4 天運動</li>
+                            <li>每次 30 分鐘</li>
+                            <li>混合有氧和力量訓練</li>
+                        </ul>
+                        <p style="margin-top: 12px; color: #666; font-size: 13px;">
+                            💡 建議：設定可達成的目標有助於建立長期運動習慣。
+                        </p>
+                    </div>
+                </div>
+            `,
+            'motivation': `
+                <div style="color: #333;">
+                    <h5 style="color: #e83e8c; margin-bottom: 12px;">💪 運動激勵</h5>
+                    <div style="line-height: 1.6;">
+                        <p><strong>恭喜您！</strong>本週已經運動了 110 分鐘！</p>
+                        <p><strong>成就解鎖：</strong>🏃‍♂️ 連續運動達人</p>
+                        <p><strong>健康效益：</strong></p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li>燃燒了約 550 卡路里</li>
+                            <li>提升了心肺功能</li>
+                            <li>改善了睡眠品質</li>
+                        </ul>
+                        <p style="margin-top: 12px; color: #666; font-size: 13px;">
+                            💡 保持這個節奏，您正在為健康投資！每週運動 150 分鐘可以顯著降低慢性疾病風險。
+                        </p>
+                    </div>
+                </div>
+            `,
+            'injury_prevention': `
+                <div style="color: #333;">
+                    <h5 style="color: #dc3545; margin-bottom: 12px;">🛡️ 運動傷害預防</h5>
+                    <div style="line-height: 1.6;">
+                        <p><strong>運動前暖身：</strong>5-10 分鐘輕度活動</p>
+                        <p><strong>運動後伸展：</strong>10-15 分鐘靜態伸展</p>
+                        <p><strong>注意事項：</strong></p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li>運動前後充分補充水分</li>
+                            <li>穿著合適的運動鞋</li>
+                            <li>避免過度訓練</li>
+                            <li>聆聽身體信號</li>
+                        </ul>
+                        <p style="margin-top: 12px; color: #666; font-size: 13px;">
+                            💡 建議：如果感到疼痛或不適，請立即停止運動並諮詢專業人士。
+                        </p>
+                    </div>
+                </div>
+            `
+        };
+        
+        return adviceTemplates[adviceType] || '<div style="color: #666;">暫無此類型的建議</div>';
     }
 
     async function deleteExercise(id){
