@@ -1231,6 +1231,16 @@
                 <div id="currentWeekDisplay" style="font-size:13px; color:#333; font-weight:bold; min-width:120px; text-align:center;"></div>
                 <button id="nextWeekBtn" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">下一週 →</button>
             </div>
+            <div style="margin-top:12px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                <div style="font-size:13px; color:#555; margin-right:8px;">日期選擇</div>
+                <button class="dayBtn" data-day="0" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週一</button>
+                <button class="dayBtn" data-day="1" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週二</button>
+                <button class="dayBtn" data-day="2" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週三</button>
+                <button class="dayBtn" data-day="3" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週四</button>
+                <button class="dayBtn" data-day="4" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週五</button>
+                <button class="dayBtn" data-day="5" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週六</button>
+                <button class="dayBtn" data-day="6" style="border:1px solid #6c757d; background:white; color:#6c757d; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">週日</button>
+            </div>
             <div id="exerciseRecords" style="margin-top:10px;"></div>
             </div>
         </div>
@@ -3549,8 +3559,22 @@
             });
         }
 
+        // 日期按鈕
+        document.querySelectorAll('.dayBtn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const dayIndex = parseInt(this.getAttribute('data-day'));
+                window.selectedDay = dayIndex;
+                updateDayButtons();
+                loadExerciseRecords();
+            });
+        });
+
         // 初始化運動紀錄（但不自動載入）
         window.currentExerciseWeek = 0; // 0 = 本週
+        // 預設選擇今天
+        const today = new Date();
+        const todayDay = today.getDay(); // 0=週日, 1=週一
+        window.selectedDay = todayDay === 0 ? 6 : todayDay - 1; // 轉換為週一到週日 (0-6)
     });
 
     async function loadExerciseRecords(){
@@ -3609,10 +3633,26 @@
             });
             
             renderExerciseListByWeek(weekGroups, weekStart);
+            updateDayButtons();
         } catch (e) { 
             console.error(e); 
             document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">載入失敗</div>';
         }
+    }
+
+    function updateDayButtons() {
+        const selectedDay = window.selectedDay || 0;
+        document.querySelectorAll('.dayBtn').forEach((btn, index) => {
+            if (index === selectedDay) {
+                btn.style.background = '#007bff';
+                btn.style.color = 'white';
+                btn.style.border = '1px solid #007bff';
+            } else {
+                btn.style.background = 'white';
+                btn.style.color = '#6c757d';
+                btn.style.border = '1px solid #6c757d';
+            }
+        });
     }
 
     function formatDate(date) {
@@ -3622,51 +3662,43 @@
     function renderExerciseListByWeek(weekGroups, weekStart) {
         const box = document.getElementById('exerciseRecords');
         const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+        const selectedDay = window.selectedDay || 0;
         
-        let html = '';
-        let hasRecords = false;
+        // 只顯示選中的日期
+        const day = weekDays[selectedDay];
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(weekStart.getDate() + selectedDay);
+        const dayRecords = weekGroups[day] || [];
         
-        weekDays.forEach((day, index) => {
-            const dayDate = new Date(weekStart);
-            dayDate.setDate(weekStart.getDate() + index);
-            const dayRecords = weekGroups[day] || [];
-            
-            if (dayRecords.length > 0) hasRecords = true;
-            
-            html += `
-            <div style="margin-bottom: 16px; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
-                <div style="background: #f8f9fa; padding: 8px 12px; font-weight: bold; color: #495057; border-bottom: 1px solid #e9ecef;">
-                    ${day} (${formatDate(dayDate)})
-                </div>
-                <div style="padding: 8px;">
-            `;
-            
-            if (dayRecords.length === 0) {
-                html += '<div style="color: #6c757d; font-size: 12px; text-align: center; padding: 8px;">無運動紀錄</div>';
-            } else {
-                dayRecords.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-                dayRecords.forEach(r => {
-                    const d = new Date(r.start_time);
-                    const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                    html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #e9ecef; border-radius:6px; margin-bottom:6px; background:white;">
-                        <div>
-                            <div style="font-weight:600; color:#0d6efd; font-size:14px;">${r.ex_type}（${r.intensity}）</div>
-                            <div style="font-size:12px; color:#666;">${timeStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
-                        </div>
-                        <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:3px 6px; font-size:11px; cursor:pointer;">刪除</button>
-                    </div>`;
-                });
-            }
-            
-            html += `
-                </div>
-            </div>`;
-        });
+        let html = `
+        <div style="margin-bottom: 16px; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+            <div style="background: #f8f9fa; padding: 8px 12px; font-weight: bold; color: #495057; border-bottom: 1px solid #e9ecef;">
+                ${day} (${formatDate(dayDate)})
+            </div>
+            <div style="padding: 8px;">
+        `;
         
-        if (!hasRecords) {
-            html = '<div style="color:#888; text-align:center; padding:20px;">本週無運動紀錄</div>';
+        if (dayRecords.length === 0) {
+            html += '<div style="color: #6c757d; font-size: 12px; text-align: center; padding: 8px;">無運動紀錄</div>';
+        } else {
+            dayRecords.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            dayRecords.forEach(r => {
+                const d = new Date(r.start_time);
+                const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #e9ecef; border-radius:6px; margin-bottom:6px; background:white;">
+                    <div>
+                        <div style="font-weight:600; color:#0d6efd; font-size:14px;">${r.ex_type}（${r.intensity}）</div>
+                        <div style="font-size:12px; color:#666;">${timeStr} ・ ${r.duration_min} 分鐘 ${r.note? '・'+r.note:''}</div>
+                    </div>
+                    <button onclick="deleteExercise(${r.id})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:3px 6px; font-size:11px; cursor:pointer;">刪除</button>
+                </div>`;
+            });
         }
+        
+        html += `
+            </div>
+        </div>`;
         
         box.innerHTML = html;
     }
