@@ -1249,9 +1249,16 @@
             
             <!-- 當週卡路里消耗線圖 -->
             <div id="weeklyCalorieChart" style="margin-top:20px; padding:15px; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                <h4 style="margin:0 0 12px 0; color:#333;">當週卡路里消耗趨勢</h4>
+                <h4 style="margin:0 0 12px 0; color:#333;">當週運動趨勢</h4>
                 <div style="position: relative; height: 300px; width: 100%;">
                     <canvas id="calorieChart"></canvas>
+                </div>
+                <!-- 本週總結 -->
+                <div id="weeklySummary" style="margin-top:15px; padding:12px; background:#f8f9fa; border-radius:6px; text-align:center;">
+                    <div style="font-weight:bold; color:#333; font-size:14px;">本週總結</div>
+                    <div id="weeklySummaryContent" style="margin-top:8px; font-size:13px; color:#666;">
+                        載入中...
+                    </div>
                 </div>
             </div>
             </div>
@@ -3669,6 +3676,7 @@
             renderExerciseListByWeek(weekGroups, weekStart);
             updateDayButtons();
             renderWeeklyCalorieChart(weekGroups, weekStart);
+            updateWeeklySummary(weekGroups);
         } catch (e) { 
             console.error(e); 
             document.getElementById('exerciseRecords').innerHTML = '<div style="color:#888;">載入失敗</div>';
@@ -3777,12 +3785,18 @@
                 </div>`;
             });
             
-            // 顯示當日總卡路里
-            if (totalCalories > 0) {
+            // 計算當日總運動時間
+            let totalDuration = 0;
+            dayRecords.forEach(r => {
+                totalDuration += r.duration_min;
+            });
+
+            // 顯示當日總結
+            if (totalCalories > 0 || totalDuration > 0) {
                 html = `
                 <div style="background: #e8f5e8; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; text-align: center;">
                     <div style="font-weight: bold; color: #28a745; font-size: 14px;">
-                        當日總消耗：${totalCalories} 卡路里
+                        當日總結：${totalDuration} 分鐘運動，消耗 ${totalCalories} 卡路里
                     </div>
                 </div>
                 ` + html;
@@ -3812,8 +3826,9 @@
         const ctx = canvas.getContext('2d');
         const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
         
-        // 計算每天總卡路里
+        // 計算每天總卡路里和運動時間
         const dailyCalories = [];
+        const dailyDuration = [];
         const labels = [];
         
         weekDays.forEach((day, index) => {
@@ -3821,14 +3836,17 @@
             dayDate.setDate(weekStart.getDate() + index);
             const dayRecords = weekGroups[day] || [];
             
-            let dayTotal = 0;
+            let dayCalories = 0;
+            let dayDuration = 0;
             dayRecords.forEach(r => {
                 const weight = getLatestUserWeight();
                 const calories = calculateCalories(r.ex_type, r.intensity, r.duration_min, weight);
-                dayTotal += calories;
+                dayCalories += calories;
+                dayDuration += r.duration_min;
             });
             
-            dailyCalories.push(dayTotal);
+            dailyCalories.push(dayCalories);
+            dailyDuration.push(dayDuration);
             labels.push(`${day}\n${formatDate(dayDate)}`);
         });
 
@@ -3857,7 +3875,22 @@
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointRadius: 6,
-                        pointHoverRadius: 8
+                        pointHoverRadius: 8,
+                        yAxisID: 'y'
+                    }, {
+                        label: '運動時間 (分鐘)',
+                        data: dailyDuration,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: '#007bff',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        yAxisID: 'y1'
                     }]
                 },
                 options: {
@@ -3865,22 +3898,55 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
                         }
                     },
                     scales: {
                         y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
                             beginAtZero: true,
                             title: {
                                 display: true,
                                 text: '卡路里 (kcal)',
+                                color: '#28a745',
                                 font: {
                                     size: 12,
                                     weight: 'bold'
                                 }
                             },
                             grid: {
-                                color: 'rgba(0,0,0,0.1)'
+                                color: 'rgba(40, 167, 69, 0.1)'
+                            },
+                            ticks: {
+                                color: '#28a745'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '運動時間 (分鐘)',
+                                color: '#007bff',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                color: '#007bff'
                             }
                         },
                         x: {
@@ -3908,6 +3974,61 @@
         } catch (error) {
             console.error('圖表創建失敗:', error);
         }
+    }
+
+    function updateWeeklySummary(weekGroups) {
+        const summaryContent = document.getElementById('weeklySummaryContent');
+        if (!summaryContent) return;
+
+        const weekDays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+        let totalCalories = 0;
+        let totalDuration = 0;
+        let exerciseDays = 0;
+
+        weekDays.forEach(day => {
+            const dayRecords = weekGroups[day] || [];
+            if (dayRecords.length > 0) {
+                exerciseDays++;
+                dayRecords.forEach(r => {
+                    const weight = getLatestUserWeight();
+                    const calories = calculateCalories(r.ex_type, r.intensity, r.duration_min, weight);
+                    totalCalories += calories;
+                    totalDuration += r.duration_min;
+                });
+            }
+        });
+
+        const avgDuration = exerciseDays > 0 ? Math.round(totalDuration / exerciseDays) : 0;
+        const hours = Math.floor(totalDuration / 60);
+        const minutes = totalDuration % 60;
+
+        let summaryText = '';
+        if (totalDuration > 0) {
+            summaryText = `
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-weight: bold; color: #28a745;">${totalCalories}</div>
+                        <div style="font-size: 11px;">總卡路里</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-weight: bold; color: #007bff;">${hours > 0 ? hours + '小時' : ''}${minutes}分鐘</div>
+                        <div style="font-size: 11px;">總運動時間</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-weight: bold; color: #6c757d;">${exerciseDays}/7</div>
+                        <div style="font-size: 11px;">運動天數</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-weight: bold; color: #fd7e14;">${avgDuration}分鐘</div>
+                        <div style="font-size: 11px;">平均時長</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            summaryText = '<div style="color: #6c757d;">本週尚無運動紀錄</div>';
+        }
+
+        summaryContent.innerHTML = summaryText;
     }
 
     async function deleteExercise(id){
