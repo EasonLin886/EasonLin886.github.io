@@ -1052,9 +1052,15 @@
                 <div class="button-container" style="display: flex; gap: 20px; margin-top: 12px; flex-wrap: nowrap; align-items: center; justify-content: flex-start;">
                     <button id="uploadImageBtn" class="input-btn image-input-btn" 
                             style="background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: background-color 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; min-width: 90px;">
-                        圖片
+                        Top 照片
                     </button>
                     <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                    <button id="uploadObliqueImageBtn" type="button" class="input-btn image-input-btn" style="background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; height: 42px;">Oblique 照片</button>
+                    <input type="file" id="obliqueImageUpload" accept="image/*" style="display: none;">
+                    <button id="uploadSideImageBtn" type="button" class="input-btn image-input-btn" style="background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; height: 42px;">Side 照片</button>
+                    <input type="file" id="sideImageUpload" accept="image/*" style="display: none;">
+                    <button id="uploadTopDepthBtn" type="button" class="input-btn image-input-btn" style="background-color: #6c757d; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; height: 42px;">Top Depth</button>
+                    <input type="file" id="topDepthUpload" accept="image/png,image/tiff" style="display: none;">
                     
                     <button id="voiceBtn" class="input-btn"
                             style="background-color: #6c757d; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: background-color 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; min-width: 90px; margin-left: auto;">
@@ -1069,9 +1075,19 @@
             
             <!-- 圖片預覽區 -->
             <div id="imagePreview" style="margin-top: 15px; display: none;">
-                <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--label-color);">圖片預覽：</p>
+                <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--label-color);">Top 照片預覽：</p>
                 <img id="previewImg" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
                 <button id="cancelImageBtn" type="button" style="margin-top: 10px; background: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 16px; font-size: 0.95em; cursor: pointer;">取消</button>
+            </div>
+            <div id="obliqueImagePreview" style="margin-top: 15px; display: none;">
+                <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--label-color);">Oblique 照片預覽：</p>
+                <img id="obliquePreviewImg" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
+                <button id="cancelObliqueImageBtn" type="button" style="margin-top: 10px; background: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 16px; font-size: 0.95em; cursor: pointer;">取消</button>
+            </div>
+            <div id="sideImagePreview" style="margin-top: 15px; display: none;">
+                <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--label-color);">Side 照片預覽：</p>
+                <img id="sidePreviewImg" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
+                <button id="cancelSideImageBtn" type="button" style="margin-top: 10px; background: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 16px; font-size: 0.95em; cursor: pointer;">取消</button>
             </div>
             
             <!-- 分析按鈕 -->
@@ -2193,6 +2209,13 @@
     const imageUpload = document.getElementById('imageUpload');
     const imagePreview = document.getElementById('imagePreview');
     const previewImg = document.getElementById('previewImg');
+    const obliqueImageUpload = document.getElementById('obliqueImageUpload');
+    const sideImageUpload = document.getElementById('sideImageUpload');
+    const topDepthUpload = document.getElementById('topDepthUpload');
+    const obliqueImagePreview = document.getElementById('obliqueImagePreview');
+    const sideImagePreview = document.getElementById('sideImagePreview');
+    const obliquePreviewImg = document.getElementById('obliquePreviewImg');
+    const sidePreviewImg = document.getElementById('sidePreviewImg');
     const analyzeBtn = document.getElementById('analyzeBtn');
     const analysisOutput = document.getElementById('analysisOutput');
     const foodTextInput = document.getElementById('foodTextInput');
@@ -2304,6 +2327,9 @@
             imageUpload.click();
         });
     }
+    document.getElementById('uploadObliqueImageBtn')?.addEventListener('click', () => obliqueImageUpload.click());
+    document.getElementById('uploadSideImageBtn')?.addEventListener('click', () => sideImageUpload.click());
+    document.getElementById('uploadTopDepthBtn')?.addEventListener('click', () => topDepthUpload.click());
     // 圖片選擇處理
     if (imageUpload) {
         imageUpload.addEventListener('change', (event) => {
@@ -2319,6 +2345,20 @@
             }
         });
     }
+    function bindViewPreview(input, image, container) {
+        input?.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                image.src = e.target.result;
+                container.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    bindViewPreview(obliqueImageUpload, obliquePreviewImg, obliqueImagePreview);
+    bindViewPreview(sideImageUpload, sidePreviewImg, sideImagePreview);
 
     // 新增：取消圖片按鈕
     const cancelImageBtn = document.getElementById('cancelImageBtn');
@@ -2331,6 +2371,16 @@
             imageUpload.value = '';
         });
     }
+    document.getElementById('cancelObliqueImageBtn')?.addEventListener('click', () => {
+        obliquePreviewImg.src = '';
+        obliqueImagePreview.style.display = 'none';
+        obliqueImageUpload.value = '';
+    });
+    document.getElementById('cancelSideImageBtn')?.addEventListener('click', () => {
+        sidePreviewImg.src = '';
+        sideImagePreview.style.display = 'none';
+        sideImageUpload.value = '';
+    });
 
     // 分析按鈕
     if (analyzeBtn) {
@@ -2362,7 +2412,8 @@
                     formData.append('textDescription', textInput);
                 }
                 if (hasImage && imageUpload.files.length > 0) {
-                    formData.append('imageFile', imageUpload.files[0]);
+                    // 第一階段固定只以 Top 視角辨識食物。
+                    formData.append('topImage', imageUpload.files[0]);
                 }
 
                 const response = await fetch('      https://b3bc-2001-288-7001-10d7-644a-dc3b-b8d1-f390.ngrok-free.app/ai_food_analysis', {
@@ -2693,16 +2744,19 @@
             formData.append('userId', window.globalUserId);
             formData.append('stage', 'nutrition'); // 第二階段：營養分析
             
-            // 檢查是否有圖片輸入
-            const hasImage = imagePreview.style.display === 'block';
-            if (hasImage && imageUpload.files.length > 0) {
-                // 圖片輸入：傳遞第一階段確認的食物資訊作為 textDescription
-                formData.append('textDescription', foodInfo);
-                formData.append('imageFile', imageUpload.files[0]);
-            } else {
-                // 純文字輸入：傳遞第一階段確認的食物資訊
-                formData.append('textDescription', foodInfo);
+            const hasTop = imageUpload.files.length > 0;
+            const hasOblique = obliqueImageUpload.files.length > 0;
+            const hasSide = sideImageUpload.files.length > 0;
+            const hasTopDepth = topDepthUpload.files.length > 0;
+            if (!hasTop || !hasOblique || !hasSide || !hasTopDepth) {
+                throw new Error('第二階段營養素估算需要 Top、Oblique、Side 三張 RGB 與一張 16-bit Top Depth');
             }
+            // 第二階段不再傳食材克數給 RAG；模型固定收到 Top/Oblique/Side 的 RGB 順序。
+            formData.append('textDescription', foodInfo);
+            formData.append('topImage', imageUpload.files[0]);
+            formData.append('obliqueImage', obliqueImageUpload.files[0]);
+            formData.append('sideImage', sideImageUpload.files[0]);
+            formData.append('topDepthImage', topDepthUpload.files[0]);
             
             // 如果有用戶設定的時間，也傳遞給後端
             if (userTime) {
@@ -2711,7 +2765,7 @@
 
             console.log('[第二階段] 送出食物資訊:', foodInfo);
             console.log('[第二階段] 送出 userTime:', userTime || '(空，後端將用現在時間)');
-            console.log('[第二階段] 是否有圖片:', hasImage);
+            console.log('[第二階段] 三視角與 Top depth 皆已提供:', hasTop && hasOblique && hasSide && hasTopDepth);
 
             const response = await fetch('      https://b3bc-2001-288-7001-10d7-644a-dc3b-b8d1-f390.ngrok-free.app/ai_food_analysis', {
                 method: 'POST',
@@ -2720,7 +2774,11 @@
             const result = await response.json();
             if (response.ok && result.success) {
                 if (result.data.nutrition_info) {
-                    handleNutritionInfoCards(result.data.nutrition_info);
+                    if (typeof result.data.nutrition_info === 'object' && result.data.nutrition_info.meal_total) {
+                        handleMealNutritionResult(result.data.nutrition_info.meal_total, userTime);
+                    } else {
+                        handleNutritionInfoCards(result.data.nutrition_info);
+                    }
                 } else {
                     analysisOutput.innerHTML = '<div style="color: #28a745; padding: 20px;">營養分析完成，但未取得營養資訊。</div>';
                 }
@@ -2776,7 +2834,43 @@
         });
     }
     });
-    // 在<script>區塊內，找到 handleNutritionInfoCards 函數，將其內容替換為：
+    // Three-view Transformer output: one editable card represents the whole meal,
+    // rather than a set of ingredient-level RAG estimates.
+    function handleMealNutritionResult(mealTotal, userTime) {
+        const time = userTime || new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const fields = [
+            ['total_weight_g', '整餐總重量', 'g'],
+            ['calories_kcal', '熱量', 'kcal'],
+            ['carbohydrate_g', '碳水化合物', 'g'],
+            ['protein_g', '蛋白質', 'g'],
+            ['fat_g', '脂肪', 'g'],
+        ];
+        let html = '<div class="nutrition-card" style="padding:18px;border:1px solid #ddd;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.04)">';
+        html += '<h4 style="margin-top:0;color:#2c5282">三視角模型整餐營養估算</h4>';
+        html += `<label style="display:block;margin-bottom:14px;color:#666">飲食時間 <input type="datetime-local" id="mealTotalTime" value="${time.replace(' ', 'T')}" style="margin-left:8px;padding:7px"></label>`;
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">';
+        fields.forEach(([key, label, unit]) => {
+            const value = Number(mealTotal[key] || 0).toFixed(1);
+            html += `<label style="padding:12px;background:#f8f9fa;border-radius:8px"><span style="display:block;color:#666;font-size:.9em">${label}</span><input id="meal-${key}" type="number" min="0" step="0.1" value="${value}" style="width:80px;margin-top:6px;font-weight:700;border:1px solid #ccc;border-radius:4px;padding:5px"> ${unit}</label>`;
+        });
+        html += '</div><button id="saveMealTotalBtn" class="submit-btn" style="margin-top:18px">儲存整餐至飲食日誌</button></div>';
+        analysisOutput.innerHTML = html;
+
+        document.getElementById('saveMealTotalBtn').onclick = async () => {
+            const values = {};
+            fields.forEach(([key]) => values[key] = Number(document.getElementById(`meal-${key}`).value));
+            const mealTime = document.getElementById('mealTotalTime').value.replace('T', ' ') + ':00';
+            const response = await fetch('      https://b3bc-2001-288-7001-10d7-644a-dc3b-b8d1-f390.ngrok-free.app/ai_food_upload_db', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({userId: window.globalUserId, mealTotal: values, mealTime})
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || '儲存失敗');
+            alert(result.message);
+        };
+    }
+
+    // 舊版逐食材 RAG 格式保留給既有文字流程相容使用。
     function handleNutritionInfoCards(nutritionInfo) {
         // 依 ***** 分割 nutrition_info
         const cards = nutritionInfo.split('*****').filter(card => card.trim() !== '');
@@ -4693,7 +4787,9 @@
             
             monthDict[month].sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time)).forEach(item => {
                 // 食物名稱換行，份量小字
-                let foodsHtml = item.foods.map(f=>`<div style='margin-bottom:2px;'><span style='font-weight:700;'>${f.food_name}</span> <span style='font-size:0.9em;color:#888;'>${f.food_portion}</span></div>`).join('');
+                let foodsHtml = item.meal_total_weight !== null && item.meal_total_weight !== undefined
+                    ? `<div style='margin-bottom:2px;'><span style='font-weight:700;'>三視角模型整餐估算</span><br><span style='font-size:0.9em;color:#888;'>整餐總重量：${item.meal_total_weight} g</span></div>`
+                    : item.foods.map(f=>`<div style='margin-bottom:2px;'><span style='font-weight:700;'>${f.food_name}</span> <span style='font-size:0.9em;color:#888;'>${f.food_portion}</span></div>`).join('');
                 // 橢圓形營養素區塊（新版：包含每日建議值對比）
                 let nutHtml = `<div style="overflow-x:auto;margin:16px 0 8px 0;">
 <div style="display:flex;gap:18px;justify-content:flex-start;min-width:400px;">
