@@ -2593,8 +2593,8 @@
                         style="color:#007bff;font-weight:700;cursor:pointer;text-decoration:none;">${food.name}</span>`;
             html += `</div>`;
             
-            // 份量（點擊藍字可編輯）
-            html += `<div style="margin-bottom: 4px; display:flex; align-items:center; gap:6px;">`;
+            // RGB-only 營養模型不使用食材份量，保留值僅供舊流程相容。
+            html += `<div style="display:none;">`;
             html += `<span style="font-size: 0.95em; color: #555; font-weight: 500;">份量：</span>`;
             html += `<span id="food-portion-${index}" 
                         style="color:#007bff;font-weight:700;cursor:pointer;text-decoration:none;">${food.portion}</span>`;
@@ -2619,8 +2619,8 @@
                 style="flex:1; padding: 6px 10px; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.95em; background: white;">`;
         html += `</div>`;
         
-        // 新增食物份量輸入
-        html += `<div style="margin-bottom: 4px; display:flex; align-items:center; gap:6px;">`;
+        // RGB-only 營養模型不使用食材份量。
+        html += `<div style="display:none;">`;
         html += `<span style="font-size: 0.95em; color: #555; font-weight: 500;">份量：</span>`;
         html += `<input type="text" id="new-food-portion" placeholder="請輸入份量，如：一碗、200g" 
                 style="flex:1; padding: 6px 10px; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.95em; background: white;">`;
@@ -2692,12 +2692,8 @@
         // 綁定 Enter 鍵事件到新增食物輸入框
         document.getElementById('new-food-name').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                document.getElementById('new-food-portion').focus();
-            }
-        });
-        document.getElementById('new-food-portion').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addNewFood(foodPairs.length);
+                e.preventDefault();
+                addNewFood();
             }
         });
     }
@@ -2735,6 +2731,12 @@
     }
     // 執行營養分析（第二階段）
     async function performNutritionAnalysis(foodInfo) {
+        // Keep the names confirmed after Top-view recognition for the diary.
+        // Portions are deliberately not used by the RGB-only meal regressor.
+        const recognizedFoodNames = Array.from(
+            String(foodInfo).matchAll(/\(([^,]+),[^)]+\)/g),
+            match => match[1].trim(),
+        ).filter(Boolean);
         // 先讀取用戶設定的時間，避免等下切換畫面把 input 移除
         const timeInputEl = document.getElementById('foodTimeInput');
         let userTime = '';
@@ -2785,7 +2787,11 @@
             if (response.ok && result.success) {
                 if (result.data.nutrition_info) {
                     if (typeof result.data.nutrition_info === 'object' && result.data.nutrition_info.meal_total) {
-                        handleMealNutritionResult(result.data.nutrition_info.meal_total, userTime);
+                        handleMealNutritionResult(
+                            result.data.nutrition_info.meal_total,
+                            userTime,
+                            recognizedFoodNames,
+                        );
                     } else {
                         handleNutritionInfoCards(result.data.nutrition_info);
                     }
@@ -2846,7 +2852,7 @@
     });
     // Three-view Transformer output: one editable card represents the whole meal,
     // rather than a set of ingredient-level RAG estimates.
-    function handleMealNutritionResult(mealTotal, userTime) {
+    function handleMealNutritionResult(mealTotal, userTime, recognizedFoodNames = []) {
         const time = userTime || new Date().toISOString().slice(0, 19).replace('T', ' ');
         const fields = [
             ['total_weight_g', '整餐總重量', 'g'],
@@ -2872,7 +2878,12 @@
             const mealTime = document.getElementById('mealTotalTime').value.replace('T', ' ') + ':00';
             const response = await fetch('      https://b3bc-2001-288-7001-10d7-644a-dc3b-b8d1-f390.ngrok-free.app/ai_food_upload_db', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({userId: window.globalUserId, mealTotal: values, mealTime})
+                body: JSON.stringify({
+                    userId: window.globalUserId,
+                    mealTotal: values,
+                    mealTime,
+                    foodNames: recognizedFoodNames,
+                })
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || '儲存失敗');
@@ -4796,10 +4807,12 @@
             html += `<h3 style="color:#2c5282;margin-top:18px;">${month.replace('-', '年')}月</h3>`;
             
             monthDict[month].sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time)).forEach(item => {
-                // 食物名稱換行，份量小字
-                let foodsHtml = item.meal_total_weight !== null && item.meal_total_weight !== undefined
-                    ? `<div style='margin-bottom:2px;'><span style='font-weight:700;'>三視角模型整餐估算</span><br><span style='font-size:0.9em;color:#888;'>整餐總重量：${item.meal_total_weight} g</span></div>`
-                    : item.foods.map(f=>`<div style='margin-bottom:2px;'><span style='font-weight:700;'>${f.food_name}</span> <span style='font-size:0.9em;color:#888;'>${f.food_portion}</span></div>`).join('');
+                // Show the food names confirmed in stage one. Nutrition values
+                // below remain the RGB three-view whole-meal prediction.
+                let foodsHtml = item.foods.map(f=>`<div style='margin-bottom:2px;'><span style='font-weight:700;'>${f.food_name}</span>${f.food_portion ? ` <span style='font-size:0.9em;color:#888;'>${f.food_portion}</span>` : ''}</div>`).join('');
+                if (item.meal_total_weight !== null && item.meal_total_weight !== undefined) {
+                    foodsHtml += `<div style='font-size:0.9em;color:#888;'>整餐總重量：${item.meal_total_weight} g</div>`;
+                }
                 // 橢圓形營養素區塊（新版：包含每日建議值對比）
                 let nutHtml = `<div style="overflow-x:auto;margin:16px 0 8px 0;">
 <div style="display:flex;gap:18px;justify-content:flex-start;min-width:400px;">
@@ -6056,35 +6069,28 @@
     // 新增食物項目函數
     function addNewFood() {
         const newFoodName = document.getElementById('new-food-name').value.trim();
-        const newFoodPortion = document.getElementById('new-food-portion').value.trim();
-        if (!newFoodName || !newFoodPortion) {
-            alert('請填寫食物名稱和份量');
+        // The RGB-only model predicts one meal total, not per-ingredient portions.
+        const newFoodPortion = '未提供';
+        if (!newFoodName) {
+            alert('請填寫食物名稱');
             return;
         }
         // 取得新的索引（現有項目數）
         const newIndex = document.querySelectorAll('[id^="food-check-"]').length;
         // 清空輸入框
         document.getElementById('new-food-name').value = '';
-        document.getElementById('new-food-portion').value = '';
         // 生成新卡片 HTML
         const newFoodHtml = `
-            <div style="margin-bottom: 15px; padding: 18px; background: white; border-radius: 10px; border: 2px solid #e8f5e8; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;" onmouseover="this.style.borderColor='#4caf50'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e8f5e8'; this.style.transform='translateY(0)'"><div style="display: flex; align-items: center; margin-bottom: 12px;"><input type="checkbox" id="food-check-${newIndex}" checked style="margin-right: 12px; width: 20px; height: 20px; accent-color: #4caf50; cursor: pointer;"><span style="font-weight: 600; color: #2c5282; font-size: 1.1em;">${newIndex + 1}. 食物項目</span></div><div style="margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><span style="font-size: 0.95em; color: #555; font-weight: 500;">食物名稱：</span><span id="food-name-${newIndex}" style="color:#007bff;font-weight:700;cursor:pointer;text-decoration:none;">${newFoodName}</span></div><div style="margin-bottom: 4px; display:flex; align-items:center; gap:6px;"><span style="font-size: 0.95em; color: #555; font-weight: 500;">份量：</span><span id="food-portion-${newIndex}" style="color:#007bff;font-weight:700;cursor:pointer;text-decoration:none;">${newFoodPortion}</span></div></div>`;
+            <div style="margin-bottom: 15px; padding: 18px; background: white; border-radius: 10px; border: 2px solid #e8f5e8; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease;" onmouseover="this.style.borderColor='#4caf50'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e8f5e8'; this.style.transform='translateY(0)'"><div style="display: flex; align-items: center; margin-bottom: 12px;"><input type="checkbox" id="food-check-${newIndex}" checked style="margin-right: 12px; width: 20px; height: 20px; accent-color: #4caf50; cursor: pointer;"><span style="font-weight: 600; color: #2c5282; font-size: 1.1em;">${newIndex + 1}. 食物項目</span></div><div style="margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><span style="font-size: 0.95em; color: #555; font-weight: 500;">食物名稱：</span><span id="food-name-${newIndex}" style="color:#007bff;font-weight:700;cursor:pointer;text-decoration:none;">${newFoodName}</span></div><span id="food-portion-${newIndex}" style="display:none;">${newFoodPortion}</span></div>`;
         // 插入到新增區塊之前
         const container = document.getElementById('add-food-section');
         container.insertAdjacentHTML('beforebegin', newFoodHtml);
         // 綁定新卡片的編輯事件
         const nameEl = document.getElementById(`food-name-${newIndex}`);
-        const portionEl = document.getElementById(`food-portion-${newIndex}`);
         if (nameEl) {
             nameEl.addEventListener('click', () => {
                 const newName = prompt('請輸入新的食物名稱', nameEl.textContent.trim());
                 if (newName !== null && newName.trim() !== '') nameEl.textContent = newName.trim();
-            });
-        }
-        if (portionEl) {
-            portionEl.addEventListener('click', () => {
-                const newPortion = prompt('請輸入新的份量', portionEl.textContent.trim());
-                if (newPortion !== null && newPortion.trim() !== '') portionEl.textContent = newPortion.trim();
             });
         }
         // 聚焦回名稱輸入框
